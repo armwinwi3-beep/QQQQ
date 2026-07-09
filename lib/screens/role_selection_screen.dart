@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'menu_screen.dart'; // import หน้าจอลูกค้า
 import 'merchant_dashboard.dart'; // import หน้าจอแม่ค้า
+import 'order_history_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   @override
@@ -27,6 +28,20 @@ class RoleSelectionScreen extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.all(20), backgroundColor: Colors.orange),
             ),
+            SizedBox(height: 40), // เว้นระยะห่างจากปุ่มบทบาท
+
+            // ปุ่มประวัติการสั่งซื้อที่เพิ่มเข้ามา
+            OutlinedButton.icon(
+                // ใช้ OutlinedButton เพื่อให้ดูเป็นปุ่มรอง (Secondary)
+                icon: Icon(Icons.history),
+                label: Text("ประวัติการสั่งซื้อของฉัน"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => OrderHistoryScreen()),
+                  );
+                })
           ],
         ),
       ),

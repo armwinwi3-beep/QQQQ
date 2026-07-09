@@ -4,6 +4,53 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderHistoryScreen extends StatelessWidget {
   @override
+  void _showHistoryDetail(BuildContext context, Map<String, dynamic> data) {
+    var items =
+        (data['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    var total = data['total_price'] ?? 0;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("รายละเอียดรายการ"),
+          content: Container(
+            width: double.maxFinite, // ให้กล่องกว้างเต็มพื้นที่เท่าที่ได้
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // ให้กล่องยืดหดตามเนื้อหา
+              children: [
+                // ลิสต์รายการอาหาร
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      var item = items[index];
+                      return ListTile(
+                        title: Text(item['name'] ?? 'ไม่มีชื่อ'),
+                        trailing: Text("x${item['qty'] ?? 0}"),
+                      );
+                    },
+                  ),
+                ),
+                Divider(),
+                Text("ราคาทั้งหมด: $total บาท",
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("ปิด"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text("ประวัติการสั่งซื้อ")),
@@ -24,14 +71,20 @@ class OrderHistoryScreen extends StatelessWidget {
             itemCount: orders.length,
             itemBuilder: (context, index) {
               var data = orders[index].data() as Map<String, dynamic>;
+              var orderData = orders[index].data() as Map<String, dynamic>;
               String status = data['status'] ?? 'pending';
 
               return Card(
-                margin: EdgeInsets.all(10),
                 child: ListTile(
-                  title: Text(data['food_name'] ?? 'ไม่มีชื่อเมนู'),
-                  subtitle: Text("สถานะ: $status"),
-                  trailing: _getStatusIcon(status),
+                  title: Text(
+                      "ออเดอร์วันที่: ${orderData['created_at']?.toDate().toString().substring(0, 16) ?? 'ไม่ระบุ'}"),
+                  subtitle: Text("สถานะ: ${orderData['status'] ?? 'pending'}"),
+                  trailing:
+                      Icon(Icons.info_outline), // เพิ่มไอคอนให้รู้ว่ากดได้
+                  onTap: () {
+                    // เพิ่มส่วนนี้: เรียกฟังก์ชัน popup
+                    _showHistoryDetail(context, orderData);
+                  },
                 ),
               );
             },
