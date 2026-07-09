@@ -1,0 +1,24 @@
+name: qqqq  # <--- นี่คือจุดที่หายไป (ใส่ชื่อโปรเจกต์ของคุณ)
+description: "A new Flutter project."
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # เพิ่ม Firebase dependencies ของคุณที่นี่ (แนะนำให้ใส่เวอร์ชันจริง ไม่แนะนำให้ใช้ ^latest_version)
+  firebase_core: ^3.0.0
+  cloud_firestore: ^5.6.12
+  firebase_auth: ^5.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
