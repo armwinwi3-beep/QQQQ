@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'menu_screen.dart';
 import 'merchant_dashboard.dart';
 import 'auth_screen.dart';
+import 'main_dashboard_screen.dart';
 
 class RoleCheckScreen extends StatelessWidget {
   @override
@@ -39,7 +40,7 @@ class RoleCheckScreen extends StatelessWidget {
               String role = userSnapshot.data!['role'];
 
               if (role == 'merchant') {
-                return MerchantDashboard(); // แม่ค้า ไป Dashboard
+                return MainDashboardScreen(); // แม่ค้า ไป Dashboard
               } else {
                 return MenuScreen(); // ลูกค้าทั่วไป ไปหน้าเมนู
               }

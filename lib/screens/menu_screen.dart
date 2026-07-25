@@ -5,7 +5,6 @@ import 'order_tracker.dart';
 import 'order_history_screen.dart';
 
 class MenuScreen extends StatefulWidget {
-  // เปลี่ยนเป็น StatefulWidget
   @override
   _MenuScreenState createState() => _MenuScreenState();
 }
@@ -28,57 +27,13 @@ class _MenuScreenState extends State<MenuScreen> {
   // 2. เก็บจำนวนที่เลือกไว้ในตะกร้า
   Map<String, int> cart = {};
 
-  // 3. ฟังก์ชัน Popup เลือกจำนวน
-  void _showQuantityDialog(BuildContext context, Map<String, dynamic> item) {
-    int tempQty = cart[item['name']] ?? 0;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text("เลือกจำนวน: ${item['name']}"),
-              content: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                      icon: Icon(Icons.remove),
-                      onPressed: () => setDialogState(() {
-                            if (tempQty > 0) tempQty--;
-                          })),
-                  Text("$tempQty", style: TextStyle(fontSize: 20)),
-                  IconButton(
-                      icon: Icon(Icons.add),
-                      onPressed: () => setDialogState(() => tempQty++)),
-                ],
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text("ยกเลิก")),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(
-                        () => cart[item['name']] = tempQty); // อัปเดตตะกร้าหลัก
-                    Navigator.pop(context);
-                  },
-                  child: Text("ตกลง"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // 4. ฟังก์ชันส่ง Order
+  // 3. ฟังก์ชันส่ง Order
   void _placeOrder() async {
     double totalPrice = 0;
     List<Map<String, dynamic>> orderList = [];
     String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
     String newOrderCode = await _generateDailyOrderCode();
+
     cart.forEach((name, qty) {
       if (qty > 0) {
         var item = menuItems.firstWhere((i) => i['name'] == name);
@@ -87,7 +42,11 @@ class _MenuScreenState extends State<MenuScreen> {
       }
     });
 
-    if (orderList.isEmpty) return;
+    if (orderList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("กรุณาเลือกอาหารอย่างน้อย 1 รายการ")));
+      return;
+    }
 
     DocumentReference docRef =
         await FirebaseFirestore.instance.collection('orders').add({
@@ -99,21 +58,34 @@ class _MenuScreenState extends State<MenuScreen> {
       'created_at': FieldValue.serverTimestamp(),
     });
 
-    Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => OrderTracker(orderId: docRef.id)));
+    // ล้างตะกร้าหลังสั่งเสร็จ
+    setState(() {
+      cart.clear();
+    });
+
+    if (context.mounted) {
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => OrderTracker(orderId: docRef.id)));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF3F3F1),
       appBar: AppBar(
-        title: Text("เมนูอาหาร"),
+        backgroundColor: const Color(0xFF1D5A5D),
+        title: const Text(
+          "เมนูอาหาร",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        elevation: 0,
         actions: [
-          // เพิ่มปุ่ม Logout ตรงนี้ครับ
           IconButton(
-            icon: Icon(Icons.history),
+            icon: const Icon(Icons.history, color: Colors.white),
             tooltip: 'ประวัติการสั่งซื้อ',
             onPressed: () {
               Navigator.push(
@@ -123,78 +95,197 @@ class _MenuScreenState extends State<MenuScreen> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'ออกจากระบบ',
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              // พอคำสั่งนี้ทำงานปุ๊บ ระบบจะดีดกลับไปหน้า Login อัตโนมัติ
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              itemCount: menuItems.length,
-              itemBuilder: (context, index) {
-                var item = menuItems[index];
-                return ListTile(
-                  title: Text(item['name']),
-                  subtitle: Text("${item['price']} บาท"),
-                  trailing: Text("เลือก: ${cart[item['name']] ?? 0}"),
-                  onTap: () => _showQuantityDialog(context, item),
-                );
-              },
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: ListView.builder(
+            padding:
+                const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 20),
+            itemCount: menuItems.length,
+            itemBuilder: (context, index) {
+              var item = menuItems[index];
+              String itemName = item['name'];
+              int itemPrice = item['price'];
+              int qty = cart[itemName] ?? 0;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child:
+                          const Icon(Icons.fastfood, color: Color(0xFF1F7A83)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(itemName,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          Text("$itemPrice บาท",
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Color(0xFF1F7A83),
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        _buildQtyButton(Icons.remove, () {
+                          setState(() {
+                            if (qty > 0) cart[itemName] = qty - 1;
+                          });
+                        }),
+                        Container(
+                          width: 40,
+                          alignment: Alignment.center,
+                          child: Text("$qty",
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                        _buildQtyButton(Icons.add, () {
+                          setState(() {
+                            cart[itemName] = qty + 1;
+                          });
+                        }, isAdd: true),
+                      ],
+                    )
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(color: Colors.white, boxShadow: [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))
+        ]),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _placeOrder,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1F7A83),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_cart_checkout,
+                              color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            "สั่งอาหารที่เลือกทั้งหมด",
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          ElevatedButton(
-            onPressed: _placeOrder,
-            child: Text("สั่งอาหารที่เลือกทั้งหมด"),
-          ),
-          SizedBox(height: 20),
-        ],
+        ),
+      ),
+    ); // ปิด Scaffold ที่หายไป
+  } // ปิด Widget build ที่หายไป
+
+  // Widget ตัวช่วยสำหรับสร้างปุ่ม + และ -
+  Widget _buildQtyButton(IconData icon, VoidCallback onTap,
+      {bool isAdd = false}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isAdd ? const Color(0xFF1F7A83) : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child:
+            Icon(icon, size: 20, color: isAdd ? Colors.white : Colors.black87),
       ),
     );
   }
-}
+} // ปิดคลาส _MenuScreenState
 
-// ฟังก์ชันสำหรับรันเลขคิวแบบ Transaction
+// ฟังก์ชันสำหรับรันเลขคิวแบบ Transaction (อยู่นอกคลาสตามปกติ)
 Future<String> _generateDailyOrderCode() async {
-  // สร้างตัวแปรวันที่ของวันนี้ (เช่น 2026-7-25)
   DateTime now = DateTime.now();
   String todayDate = "${now.year}-${now.month}-${now.day}";
 
-  // ชี้ไปยัง Document ที่ใช้เก็บตัวนับ (ตั้งชื่อว่า order_counter)
   DocumentReference counterRef =
       FirebaseFirestore.instance.collection('system').doc('order_counter');
 
   return await FirebaseFirestore.instance.runTransaction((transaction) async {
     DocumentSnapshot snapshot = await transaction.get(counterRef);
 
-    int currentNumber = 1; // เริ่มต้นที่ 1
+    int currentNumber = 1;
 
     if (snapshot.exists) {
       var data = snapshot.data() as Map<String, dynamic>;
       String? lastDate = data['date'];
       int? lastNumber = data['number'];
 
-      // เช็คว่า วันที่ที่บันทึกล่าสุด คือ "วันนี้" หรือไม่?
       if (lastDate == todayDate) {
-        // ถ้าเป็นวันเดียวกัน ให้บวกเลขเพิ่มไปอีก 1
         currentNumber = (lastNumber ?? 0) + 1;
-      } else {
-        // ถ้าเป็นวันใหม่ (เที่ยงคืนผ่านไปแล้ว) เลขจะถูก Reset กลับเป็น 1 อัตโนมัติ
       }
     }
 
-    // อัปเดตข้อมูลวันที่และเลขล่าสุดกลับเข้า Firebase
     transaction.set(counterRef, {
       'date': todayDate,
       'number': currentNumber,
     });
 
-    // นำเลขมาจัดรูปแบบ ใส่ TOY และเติมเลข 0 ด้านหน้าให้ครบ 3 หลัก (001 - 999)
     String formattedNumber = currentNumber.toString().padLeft(3, '0');
     return "TOY$formattedNumber";
   });

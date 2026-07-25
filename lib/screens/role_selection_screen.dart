@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'menu_screen.dart'; // import หน้าจอลูกค้า
 import 'merchant_dashboard.dart'; // import หน้าจอแม่ค้า
 import 'order_history_screen.dart';
+import 'main_dashboard_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
   @override
@@ -21,8 +22,10 @@ class RoleSelectionScreen extends StatelessWidget {
             ),
             SizedBox(height: 30),
             ElevatedButton(
-              onPressed: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => MerchantDashboard())),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => MainDashboardScreen())),
               child: Text("ไปหน้าแม่ค้า (ดูออเดอร์)",
                   style: TextStyle(fontSize: 20)),
               style: ElevatedButton.styleFrom(

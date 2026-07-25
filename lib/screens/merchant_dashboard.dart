@@ -16,7 +16,7 @@ class MerchantDashboard extends StatelessWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("รายละเอียดออเดอร์"),
+          title: const Text("รายละเอียดออเดอร์"),
           content: Container(
             width: double.maxFinite,
             child: Column(
@@ -27,15 +27,63 @@ class MerchantDashboard extends StatelessWidget {
                       trailing: Text("price ${item['price'] ?? 0}" +
                           " x ${item['qty'] ?? 0}"),
                     )),
-                Divider(),
+                const Divider(),
                 Text("ราคารวม: $total บาท",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context), child: Text("ปิด")),
+                onPressed: () => Navigator.pop(context),
+                child: const Text("ปิด", style: TextStyle(color: Colors.grey))),
+
+            // 🟢 เพิ่มปุ่ม "ยกเลิก" สีแดง สำหรับแม่ค้า
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade400),
+              onPressed: () {
+                // โชว์ Popup ถามเพื่อความชัวร์ก่อนแม่ค้าจะกดยกเลิก
+                showDialog(
+                  context: context,
+                  builder: (BuildContext confirmContext) {
+                    return AlertDialog(
+                      title: const Text("ยกเลิกออเดอร์ลูกค้า"),
+                      content: const Text("ต้องการยกเลิกออเดอร์นี้ใช่หรือไม่?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(confirmContext),
+                          child: const Text("ปิด"),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red),
+                          onPressed: () async {
+                            // 1. อัปเดตสถานะใน Firestore เป็น cancelled
+                            await FirebaseFirestore.instance
+                                .collection('orders')
+                                .doc(doc.id)
+                                .update({'status': 'cancelled'});
+
+                            // 2. ปิด Popup ยืนยัน และ Popup รายละเอียด
+                            if (context.mounted) {
+                              Navigator.pop(confirmContext);
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: const Text("ยืนยันยกเลิก",
+                              style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: const Text("ยกเลิกออเดอร์",
+                  style: TextStyle(color: Colors.white)),
+            ),
+
+            // ปุ่มทำรายการเสร็จสิ้น (สีเขียว)
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
               onPressed: () async {
@@ -47,9 +95,11 @@ class MerchantDashboard extends StatelessWidget {
                   'status': 'completed',
                 });
                 // 2. ปิด Popup
-                Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
               },
-              child: Text("ทำรายการเสร็จสิ้น",
+              child: const Text("ทำรายการเสร็จสิ้น",
                   style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -58,22 +108,13 @@ class MerchantDashboard extends StatelessWidget {
     );
   }
 
+  @override // เพิ่ม @override เพื่อความถูกต้องตามหลักของ StatelessWidget
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Dashboard แม่ค้า"),
-        actions: [
-          // เพิ่มปุ่ม Logout ตรงนี้ครับ
-          IconButton(
-            icon: Icon(Icons.logout),
-            tooltip: 'ออกจากระบบ',
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              // พอคำสั่งนี้ทำงานปุ๊บ ระบบจะดีดกลับไปหน้า Login อัตโนมัติ
-            },
-          ),
-        ],
-      ),
+      // เอา AppBar ออกตามที่เราเคยทำหน้า Modern UI ไปแล้ว เพื่อไม่ให้หัวแอปซ้อนกัน
+      // appBar: AppBar(
+      //   title: Text("Dashboard แม่ค้า"),
+      // ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
@@ -81,10 +122,26 @@ class MerchantDashboard extends StatelessWidget {
             .orderBy('created_at', descending: false)
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return Center(child: CircularProgressIndicator());
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
           var orders = snapshot.data!.docs;
+
+          if (orders.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inbox, size: 80, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text("ยังไม่มีออเดอร์ใหม่",
+                      style:
+                          TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                ],
+              ),
+            );
+          }
 
           return ListView.builder(
             itemCount: orders.length,
@@ -93,23 +150,27 @@ class MerchantDashboard extends StatelessWidget {
               var data = doc.data() as Map<String, dynamic>;
               Timestamp? createdAt = data['created_at'] as Timestamp?;
               String orderCode = data['order_code'] ?? doc.id;
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(child: Text("${index + 1}")),
-                  title: Text("ออเดอร์: $orderCode"),
 
-                  // เปลี่ยน subtitle จาก Text ธรรมดา เป็น Column เพื่อให้ใส่ได้ 2 บรรทัด
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFF1F7A83),
+                    child: Text("${index + 1}",
+                        style: const TextStyle(color: Colors.white)),
+                  ),
+                  title: Text("ออเดอร์: $orderCode",
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("สถานะ: รอดำเนินการ"),
-
+                      const Text("สถานะ: รอดำเนินการ",
+                          style: TextStyle(color: Colors.orange)),
                       // เรียกใช้ Widget จับเวลาที่เราสร้างไว้!
                       TimeElapsedWidget(createdAt: createdAt),
                     ],
                   ),
-
-                  trailing: Icon(Icons.arrow_forward_ios),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _showOrderDetails(context, doc),
                 ),
               );
@@ -138,7 +199,7 @@ class _TimeElapsedWidgetState extends State<TimeElapsedWidget> {
   void initState() {
     super.initState();
     // สั่งให้รีเฟรชหน้าจอตัวเองทุกๆ 1 วินาที
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) setState(() {});
     });
   }
@@ -152,7 +213,7 @@ class _TimeElapsedWidgetState extends State<TimeElapsedWidget> {
   @override
   Widget build(BuildContext context) {
     if (widget.createdAt == null) {
-      return Text("กำลังรับข้อมูลเวลา...",
+      return const Text("กำลังรับข้อมูลเวลา...",
           style: TextStyle(color: Colors.grey, fontSize: 12));
     }
 
