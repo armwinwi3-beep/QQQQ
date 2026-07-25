@@ -1,9 +1,72 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OrderHistoryScreen extends StatelessWidget {
   @override
+  Widget build(BuildContext context) {
+    // ดึง UID ของผู้ใช้ปัจจุบัน
+    String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("ประวัติการสั่งซื้อของฉัน"),
+      ),
+      body: currentUserId == null
+          ? Center(child: Text("ไม่พบข้อมูลผู้ใช้งาน"))
+          : StreamBuilder<QuerySnapshot>(
+              // กรองเฉพาะออเดอร์ที่ user_id ตรงกับผู้ใช้ปัจจุบัน
+              stream: FirebaseFirestore.instance
+                  .collection('orders')
+                  .where('user_id', isEqualTo: currentUserId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Text("เกิดข้อผิดพลาด: ${snapshot.error}"));
+                }
+                if (!snapshot.hasData) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                var orders = snapshot.data!.docs;
+
+                if (orders.isEmpty) {
+                  return Center(child: Text("ยังไม่มีประวัติการสั่งซื้อ"));
+                }
+
+                return ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    var doc = orders[index];
+                    var orderData = doc.data() as Map<String, dynamic>;
+                    var orderCode = orderData['order_code'] ?? 'ไม่มีรหัส';
+
+                    return Card(
+                      margin: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      child: ListTile(
+                        title: Text("ออเดอร์: $orderCode",
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("สถานะ: ${orderData['status'] ?? 'pending'}"),
+                            Text(
+                                "ราคารวม: ${orderData['total_price'] ?? 0} บาท"),
+                          ],
+                        ),
+                        trailing: Icon(Icons.info_outline),
+                        onTap: () => _showHistoryDetail(context, orderData),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    );
+  }
+
+  // ฟังก์ชัน Popup แสดงรายละเอียดออเดอร์
   void _showHistoryDetail(BuildContext context, Map<String, dynamic> data) {
     var items =
         (data['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
@@ -15,12 +78,11 @@ class OrderHistoryScreen extends StatelessWidget {
         return AlertDialog(
           title: Text("รายละเอียดรายการ"),
           content: Container(
-            width: double.maxFinite, // ให้กล่องกว้างเต็มพื้นที่เท่าที่ได้
+            width: double.maxFinite,
             child: Column(
-              mainAxisSize: MainAxisSize.min, // ให้กล่องยืดหดตามเนื้อหา
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // ลิสต์รายการอาหาร
-                Expanded(
+                Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
                     itemCount: items.length,
@@ -28,7 +90,8 @@ class OrderHistoryScreen extends StatelessWidget {
                       var item = items[index];
                       return ListTile(
                         title: Text(item['name'] ?? 'ไม่มีชื่อ'),
-                        trailing: Text("x${item['qty'] ?? 0}"),
+                        trailing: Text(
+                            "price ${item['price'] ?? 0} x ${item['qty'] ?? 0}"),
                       );
                     },
                   ),
@@ -49,60 +112,5 @@ class OrderHistoryScreen extends StatelessWidget {
         );
       },
     );
-  }
-
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("ประวัติการสั่งซื้อ")),
-      body: StreamBuilder<QuerySnapshot>(
-        // ดึงข้อมูลเรียงตามเวลาล่าสุด (ต้องทำ Index ถ้า Query ซับซ้อน)
-        stream: FirebaseFirestore.instance
-            .collection('orders')
-            // .where('user_id', isEqualTo: FirebaseAuth.instance.currentUser!.uid)
-            .orderBy('created_at', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData)
-            return Center(child: CircularProgressIndicator());
-
-          var orders = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              var data = orders[index].data() as Map<String, dynamic>;
-              var orderData = orders[index].data() as Map<String, dynamic>;
-              String status = data['status'] ?? 'pending';
-
-              return Card(
-                child: ListTile(
-                  title: Text(
-                      "ออเดอร์วันที่: ${orderData['created_at']?.toDate().toString().substring(0, 16) ?? 'ไม่ระบุ'}"),
-                  subtitle: Text("สถานะ: ${orderData['status'] ?? 'pending'}"),
-                  trailing:
-                      Icon(Icons.info_outline), // เพิ่มไอคอนให้รู้ว่ากดได้
-                  onTap: () {
-                    // เพิ่มส่วนนี้: เรียกฟังก์ชัน popup
-                    _showHistoryDetail(context, orderData);
-                  },
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  // ฟังก์ชันช่วยแสดงไอคอนสถานะให้สวยๆ
-  Widget _getStatusIcon(String status) {
-    switch (status) {
-      case 'completed':
-        return Icon(Icons.check_circle, color: Colors.blue);
-      case 'ready':
-        return Icon(Icons.restaurant, color: Colors.green);
-      default:
-        return Icon(Icons.access_time, color: Colors.orange);
-    }
   }
 }

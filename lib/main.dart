@@ -11,8 +11,6 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Login ทันทีที่เปิดแอป
-
   runApp(MaterialApp(home: RoleCheckScreen()));
 }
 

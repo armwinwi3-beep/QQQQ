@@ -21,6 +21,7 @@ class OrderTracker extends StatelessWidget {
             return Center(child: CircularProgressIndicator());
 
           var data = snapshot.data!.data() as Map<String, dynamic>;
+          String orderCode = data['order_code'] ?? 'ไม่มีรหัส';
           String status = data['status']; // 'pending', 'ready', 'completed'
 
           return Center(
@@ -32,7 +33,10 @@ class OrderTracker extends StatelessWidget {
                 Text("สถานะ: $status",
                     style:
                         TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                Text("ออเดอร์ ID: $orderId"),
+                Text(
+                  "รหัสออเดอร์: $orderCode",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           );
