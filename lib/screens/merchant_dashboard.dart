@@ -22,7 +22,7 @@ class MerchantDashboard extends StatelessWidget {
               children: [
                 ...items.map((item) => ListTile(
                       title: Text(item['name'] ?? 'ไม่มีชื่อ'),
-                      trailing: Text("price${item['price '] ?? 0}" +
+                      trailing: Text("price ${item[' price '] ?? 0}" +
                           " x${item['qty'] ?? 0}"),
                     )),
                 Divider(),

@@ -5,15 +5,15 @@ import 'firebase_options.dart'; // ไฟล์ที่สร้างจาก
 import 'screens/merchant_dashboard.dart';
 import 'screens/role_selection_screen.dart';
 import 'services/firebase_service.dart';
+import 'screens/role_check_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Login ทันทีที่เปิดแอป
-  await AuthService.signInAnonymously();
 
-  runApp(MaterialApp(home: RoleSelectionScreen()));
+  runApp(MaterialApp(home: RoleCheckScreen()));
 }
 
 class MyApp extends StatelessWidget {
