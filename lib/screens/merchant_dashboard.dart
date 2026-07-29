@@ -5,6 +5,8 @@ import '../services/firebase_service.dart';
 import 'dart:async';
 
 class MerchantDashboard extends StatelessWidget {
+  const MerchantDashboard({super.key});
+
   @override
   void _showOrderDetails(BuildContext context, DocumentSnapshot doc) {
     var data = doc.data() as Map<String, dynamic>;
@@ -17,14 +19,14 @@ class MerchantDashboard extends StatelessWidget {
       builder: (context) {
         return AlertDialog(
           title: const Text("รายละเอียดออเดอร์"),
-          content: Container(
+          content: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ...items.map((item) => ListTile(
                       title: Text(item['name'] ?? 'ไม่มีชื่อ'),
-                      trailing: Text("price ${item['price'] ?? 0}" +
+                      trailing: Text("price ${item['price'] ?? 0}"
                           " x ${item['qty'] ?? 0}"),
                     )),
                 const Divider(),
@@ -185,8 +187,7 @@ class MerchantDashboard extends StatelessWidget {
 class TimeElapsedWidget extends StatefulWidget {
   final Timestamp? createdAt;
 
-  const TimeElapsedWidget({Key? key, required this.createdAt})
-      : super(key: key);
+  const TimeElapsedWidget({super.key, required this.createdAt});
 
   @override
   _TimeElapsedWidgetState createState() => _TimeElapsedWidgetState();

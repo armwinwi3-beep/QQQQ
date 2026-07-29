@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class OrderTracker extends StatelessWidget {
   final String orderId; // รับ ID ของออเดอร์มาจากหน้าเมนู
 
-  const OrderTracker({Key? key, required this.orderId}) : super(key: key);
+  const OrderTracker({super.key, required this.orderId});
 
   @override
   Widget build(BuildContext context) {
@@ -124,7 +124,7 @@ class OrderTracker extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(statusIcon, size: 80, color: statusColor),

@@ -9,6 +9,8 @@ import 'inventory_screen.dart';
 import 'merchant_dashboard.dart';
 
 class MainDashboardScreen extends StatefulWidget {
+  const MainDashboardScreen({super.key});
+
   @override
   _MainDashboardScreenState createState() => _MainDashboardScreenState();
 }
@@ -18,11 +20,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // รายชื่อหน้าจอที่จะสลับไปมา
   final List<Widget> _pages = [
-    ReportScreen(),
+    const ReportScreen(),
     InventoryScreen(),
     MerchantDashboard(), // รอใส่หน้าขายของ
-    Center(child: Text('หน้ารายจ่าย')),
-    Center(child: Text('หน้าตั้งค่า')),
+    const Center(child: Text('หน้ารายจ่าย')),
+    const Center(child: Text('หน้าตั้งค่า')),
   ];
 
   @override
@@ -32,7 +34,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF1D5A5D), // สีเขียวเข้ม
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           tooltip: 'ออกจากระบบ',
           onPressed: () async {
             await FirebaseAuth.instance.signOut();

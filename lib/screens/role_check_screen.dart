@@ -7,6 +7,8 @@ import 'auth_screen.dart';
 import 'main_dashboard_screen.dart';
 
 class RoleCheckScreen extends StatelessWidget {
+  const RoleCheckScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
@@ -14,7 +16,8 @@ class RoleCheckScreen extends StatelessWidget {
       builder: (context, authSnapshot) {
         // 1. เช็คว่า ล็อกอินหรือยัง?
         if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
 
         User? user = authSnapshot.data;
@@ -32,7 +35,8 @@ class RoleCheckScreen extends StatelessWidget {
               .get(),
           builder: (context, userSnapshot) {
             if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
             }
 
             // ถ้าเจอข้อมูลใน Collection 'users'

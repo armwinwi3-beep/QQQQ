@@ -5,10 +5,12 @@ import 'order_history_screen.dart';
 import 'main_dashboard_screen.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
+  const RoleSelectionScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("เลือกโหมดทดสอบ")),
+      appBar: AppBar(title: const Text("เลือกโหมดทดสอบ")),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -16,33 +18,35 @@ class RoleSelectionScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () => Navigator.push(context,
                   MaterialPageRoute(builder: (context) => MenuScreen())),
+              style:
+                  ElevatedButton.styleFrom(padding: const EdgeInsets.all(20)),
               child: Text("ไปหน้าลูกค้า (สั่งอาหาร)",
                   style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(padding: EdgeInsets.all(20)),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             ElevatedButton(
               onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
                       builder: (context) => MainDashboardScreen())),
+              style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(20),
+                  backgroundColor: Colors.orange),
               child: Text("ไปหน้าแม่ค้า (ดูออเดอร์)",
                   style: TextStyle(fontSize: 20)),
-              style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.all(20), backgroundColor: Colors.orange),
             ),
-            SizedBox(height: 40), // เว้นระยะห่างจากปุ่มบทบาท
+            const SizedBox(height: 40), // เว้นระยะห่างจากปุ่มบทบาท
 
             // ปุ่มประวัติการสั่งซื้อที่เพิ่มเข้ามา
             OutlinedButton.icon(
                 // ใช้ OutlinedButton เพื่อให้ดูเป็นปุ่มรอง (Secondary)
-                icon: Icon(Icons.history),
-                label: Text("ประวัติการสั่งซื้อของฉัน"),
+                icon: const Icon(Icons.history),
+                label: const Text("ประวัติการสั่งซื้อของฉัน"),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (context) => OrderHistoryScreen()),
+                        builder: (context) => const OrderHistoryScreen()),
                   );
                 })
           ],
