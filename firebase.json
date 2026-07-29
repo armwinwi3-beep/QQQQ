@@ -1,1 +1,29 @@
-{"flutter":{"platforms":{"dart":{"lib/firebase_options.dart":{"projectId":"qqqq-eb471","configurations":{"web":"1:597791098480:web:417ef5af35086c9c3dd6b5","windows":"1:597791098480:web:f6982220d5767bab3dd6b5"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "qqqq-eb471",
+          "configurations": {
+            "web": "1:597791098480:web:417ef5af35086c9c3dd6b5",
+            "windows": "1:597791098480:web:f6982220d5767bab3dd6b5"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
