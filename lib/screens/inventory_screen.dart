@@ -906,22 +906,45 @@ class _EditStockModalWidgetState extends State<EditStockModalWidget> {
                     style: TextStyle(color: Colors.grey)),
               ),
             ),
+            // ... (โค้ดปุ่มหยุดติดตามสต็อกด้านบน เก็บไว้เหมือนเดิม) ...
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Map<String, dynamic> updatedItem = Map.from(widget.item);
                   int amt = int.tryParse(amountController.text) ?? 0;
+                  int currentCost = widget.item['cost'] ?? 0;
+                  int inputCost = int.tryParse(costController.text) ?? 0;
 
                   if (isAddingStock) {
-                    updatedItem['stock'] = currentStock + amt;
+                    int newStock = currentStock + amt;
+                    updatedItem['stock'] = newStock;
+
+                    // 🟢 คำนวณต้นทุนถัวเฉลี่ย (Weighted Average Cost)
+                    if (newStock > 0 && amt > 0) {
+                      double totalOldValue =
+                          (currentStock * currentCost).toDouble();
+                      double totalNewValue = (amt * inputCost).toDouble();
+                      double avgCost =
+                          (totalOldValue + totalNewValue) / newStock;
+
+                      // ปัดเศษให้เป็นจำนวนเต็มเพื่อเก็บลง Database
+                      // (เช่น 7.5 บาท จะปัดเป็น 8 บาท)
+                      updatedItem['cost'] = avgCost.round();
+                    } else {
+                      // ถ้าไม่ได้เติมจำนวน ให้คงต้นทุนเดิมไว้
+                      updatedItem['cost'] = currentCost;
+                    }
                   } else {
+                    // โหมดลดสต็อก
                     int newStock = currentStock - amt;
                     updatedItem['stock'] = newStock < 0 ? 0 : newStock;
+
+                    // ลดสต็อก (ของหาย/ของเสีย) ต้นทุนต่อชิ้นต้องเท่าเดิมเสมอ
+                    updatedItem['cost'] = currentCost;
                   }
 
-                  updatedItem['cost'] =
-                      int.tryParse(costController.text) ?? widget.item['cost'];
                   updatedItem['min_stock'] =
                       int.tryParse(minStockController.text) ??
                           widget.item['min_stock'];
