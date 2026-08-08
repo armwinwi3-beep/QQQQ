@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🟢 เพิ่มสำหรับการล็อกอิน Google
+import 'package:cloud_firestore/cloud_firestore.dart'; // 🟢 เพิ่มสำหรับบันทึกข้อมูลลูกค้าใหม่
 import '../services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -13,12 +15,50 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool isLogin = true;
-  String selectedRole = 'user'; // ค่าเริ่มต้นตอนสมัครคือเป็นลูกค้า
+  // 🔴 ลบตัวแปร selectedRole ออก เพราะเราจะบังคับเป็นลูกค้าแล้ว
+
+  // 🟢 ฟังก์ชันสำหรับเข้าสู่ระบบด้วย Google
+  Future<void> _signInWithGoogle() async {
+    try {
+      GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithPopup(googleProvider);
+
+      User? user = userCredential.user;
+      if (user != null) {
+        // เช็คว่าผู้ใช้นี้เคยมีประวัติในฐานข้อมูลหรือยัง
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
+        if (!userDoc.exists) {
+          // ถ้าเป็นการล็อกอินครั้งแรก ให้บันทึกเป็น 'customer' อัตโนมัติ
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+            'email': user.email,
+            'role': 'customer', // 🟢 บังคับเป็นลูกค้าเสมอ
+            'created_at': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Google Login Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text("เกิดข้อผิดพลาดในการล็อกอินด้วย Google")),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F1), // สีพื้นหลัง
+      backgroundColor: const Color(0xFFF3F3F1),
       body: Center(
         child: SingleChildScrollView(
           child: Container(
@@ -47,7 +87,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 2. หัวข้อ (เปลี่ยนอัตโนมัติตามสถานะ isLogin)
+                // 2. หัวข้อ
                 Text(
                   isLogin ? 'เข้าสู่ระบบ' : 'สมัครสมาชิก',
                   style: const TextStyle(
@@ -60,7 +100,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // 3. ช่องกรอก Email
                 TextField(
-                  controller: _emailController, // เชื่อมกับ Controller เดิม
+                  controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
                     labelText: 'อีเมล (Email)',
@@ -86,7 +126,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                 // 4. ช่องกรอก Password
                 TextField(
-                  controller: _passwordController, // เชื่อมกับ Controller เดิม
+                  controller: _passwordController,
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: 'รหัสผ่าน (Password)',
@@ -108,47 +148,19 @@ class _AuthScreenState extends State<AuthScreen> {
                     fillColor: Colors.grey.shade50,
                   ),
                 ),
-
-                // 5. ตัวเลือก Role (โชว์เฉพาะตอนสมัครสมาชิก !isLogin)
-                if (!isLogin) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Radio(
-                        value: 'user',
-                        groupValue: selectedRole,
-                        activeColor: const Color(0xFF1F7A83), // สีเขียวธีมหลัก
-                        onChanged: (val) =>
-                            setState(() => selectedRole = val.toString()),
-                      ),
-                      const Text("ลูกค้า", style: TextStyle(fontSize: 16)),
-                      const SizedBox(width: 20),
-                      Radio(
-                        value: 'merchant',
-                        groupValue: selectedRole,
-                        activeColor: const Color(0xFF1F7A83),
-                        onChanged: (val) =>
-                            setState(() => selectedRole = val.toString()),
-                      ),
-                      const Text("แม่ค้า", style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                ],
-
                 const SizedBox(height: 24),
 
-                // 6. ปุ่มหลัก (เข้าสู่ระบบ / สมัครสมาชิก)
+                // 5. ปุ่มหลัก (เข้าสู่ระบบ / สมัครสมาชิกอีเมล)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () async {
-                      // ดึงฟังก์ชันมาจากโค้ดเก่า
                       var user = isLogin
                           ? await _auth.signIn(
                               _emailController.text, _passwordController.text)
+                          // 🟢 เปลี่ยนโค้ดตรงนี้ บังคับส่งคำว่า 'customer' เข้าไปแทน selectedRole เดิม
                           : await _auth.signUp(_emailController.text,
-                              _passwordController.text, selectedRole);
+                              _passwordController.text, 'customer');
 
                       if (user == null) {
                         if (context.mounted) {
@@ -179,7 +191,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // 7. ปุ่มสลับโหมด Login / Register
+                // 6. ปุ่มสลับโหมด Login / Register
                 TextButton(
                   onPressed: () => setState(() => isLogin = !isLogin),
                   child: Text(
@@ -191,12 +203,45 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
 
+                // 7. เส้นคั่น "หรือ"
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 16.0),
-                  child: Divider(),
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child:
+                            Text("หรือ", style: TextStyle(color: Colors.grey)),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
                 ),
 
-                // 8. ปุ่ม Guest
+                // 8. 🟢 ปุ่ม Google Login
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _signInWithGoogle,
+                    icon: const Icon(Icons.g_mobiledata,
+                        size: 32, color: Colors.red),
+                    label: const Text(
+                      'เข้าสู่ระบบด้วย Google',
+                      style: TextStyle(color: Colors.black87, fontSize: 15),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 9. ปุ่ม Guest
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(

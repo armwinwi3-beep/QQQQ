@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-// ดึงไฟล์หน้าย่อยเข้ามาใช้งาน
-import 'report_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// ดึงไฟล์หน้าย่อยเข้ามาใช้งาน
+import 'report_screen.dart';
 import 'inventory_screen.dart';
-
-// 🟢 เพิ่มบรรทัดนี้เข้าไป
 import 'merchant_dashboard.dart';
+
+// 🟢 1. Import ไฟล์หน้าเมนูเข้ามา
+import 'menu_screen.dart';
 
 class MainDashboardScreen extends StatefulWidget {
   const MainDashboardScreen({super.key});
@@ -18,27 +19,29 @@ class MainDashboardScreen extends StatefulWidget {
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
   int _selectedIndex = 0;
 
-  // รายชื่อหน้าจอที่จะสลับไปมา
+  // 🟢 2. อัปเดตรายชื่อหน้าจอที่จะสลับไปมา
   final List<Widget> _pages = [
     const ReportScreen(),
     InventoryScreen(),
-    MerchantDashboard(), // รอใส่หน้าขายของ
-    const Center(child: Text('หน้ารายจ่าย')),
+    MerchantDashboard(),
+
+    // 🔴 แก้ไขบรรทัดนี้: เติม isMerchant: true เข้าไปในวงเล็บครับ!
+    const MenuScreen(isMerchant: true),
+
     const Center(child: Text('หน้าตั้งค่า')),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F3F1), // สีพื้นหลังอิงจากรูป
+      backgroundColor: const Color(0xFFF3F3F1),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF1D5A5D), // สีเขียวเข้ม
+        backgroundColor: const Color(0xFF1D5A5D),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           tooltip: 'ออกจากระบบ',
           onPressed: () async {
             await FirebaseAuth.instance.signOut();
-            // พอคำสั่งนี้ทำงานปุ๊บ ระบบจะดีดกลับไปหน้า Login อัตโนมัติ
           },
         ),
         title: const Column(
@@ -52,7 +55,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 style: TextStyle(color: Colors.white70, fontSize: 12)),
           ],
         ),
-
         centerTitle: true,
         elevation: 0,
       ),
@@ -68,15 +70,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             _selectedIndex = index;
           });
         },
+        // 🟢 3. อัปเดตปุ่มเมนูด้านล่าง
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'รายงาน'),
           BottomNavigationBarItem(
               icon: Icon(Icons.inventory_2_outlined), label: 'คลัง'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.store_outlined), label: 'ขายของ'),
+              icon: Icon(Icons.receipt_long), label: 'ออเดอร์เข้า'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              label: 'รายจ่าย'),
+              icon: Icon(Icons.point_of_sale),
+              label:
+                  'หน้าร้าน'), // 🟢 เปลี่ยนไอคอนและชื่อให้เหมาะกับการเป็นเครื่อง POS
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'ตั้งค่า'),
         ],
       ),

@@ -3,12 +3,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'order_tracker.dart';
 import 'order_history_screen.dart';
+import '../services/print_slip_service.dart';
 
 class MenuScreen extends StatefulWidget {
-  const MenuScreen({super.key});
+  final bool isMerchant; // 🟢 ต้องมีบรรทัดนี้
+
+  // 🟢 ตรงนี้ต้องมี this.isMerchant = false
+  const MenuScreen({super.key, this.isMerchant = false});
 
   @override
-  _MenuScreenState createState() => _MenuScreenState();
+  State<MenuScreen> createState() => _MenuScreenState();
 }
 
 class _MenuScreenState extends State<MenuScreen> {
@@ -50,10 +54,22 @@ class _MenuScreenState extends State<MenuScreen> {
       return;
     }
 
+    // 🟢 1. กำหนดชื่อลูกค้าและประเภทออเดอร์เริ่มต้น (สำหรับลูกค้าที่สั่งเอง)
+    String customerName = "ลูกค้าทั่วไป";
+    String orderType = "online";
+
+    // 🟢 2. เช็คเงื่อนไขว่าเป็นแม่ค้ากดสั่งหรือไม่
+    if (widget.isMerchant) {
+      customerName = "Walk-in (หน้าร้าน)";
+      orderType = "walk-in";
+    }
+
     DocumentReference docRef =
         await FirebaseFirestore.instance.collection('orders').add({
       'order_code': newOrderCode,
       'user_id': currentUserId,
+      'customer_name': customerName, // 🟢 บันทึกชื่อลง Database
+      'order_type': orderType, // 🟢 บันทึกประเภทการสั่งลง Database
       'items': orderList,
       'total_price': totalPrice,
       'status': 'pending',
@@ -66,10 +82,29 @@ class _MenuScreenState extends State<MenuScreen> {
     });
 
     if (context.mounted) {
-      Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => OrderTracker(orderId: docRef.id)));
+      if (widget.isMerchant) {
+        // ถ้าเป็นแม่ค้า ให้ขึ้นแค่ข้อความสำเร็จ
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("รับออเดอร์หน้าร้านสำเร็จ!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // 🟢 เพิ่มคำสั่งพิมพ์สลิปตรงนี้ได้เลย! 🟢
+        await PrintSlipService.printOrderSlip(
+          queueNumber: newOrderCode, // เอา ID มาย่อเป็นคิวหน้าร้าน เช่น W-A1B
+          items: orderList,
+          totalPrice: totalPrice,
+          orderId: docRef.id,
+        );
+      } else {
+        // ถ้าเป็นลูกค้าสั่งเอง ให้เด้งไปหน้าดูสถานะคิว
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => OrderTracker(orderId: docRef.id)));
+      }
     }
   }
 
