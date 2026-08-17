@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -18,11 +19,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final TextEditingController _addCategoryController = TextEditingController(text: 'ทั่วไป');
   String selectedCategory = 'ทั้งหมด';
  // 🟢 วางทับฟังก์ชัน build เดิมทั้งหมด
-  @override
+ @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('products').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('products')
+          // 🟢 เพิ่มบรรทัดนี้ เพื่อดึงมาแค่สินค้าของร้านตัวเอง
+          .where('merchant_id', isEqualTo: FirebaseAuth.instance.currentUser!.uid) 
+          .snapshots(),
       builder: (context, snapshot) {
+        // ... โค้ดเดิม ...
         
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -428,14 +434,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         return;
                       }
 
+                      // เลื่อนหาตรงที่สั่ง .add() แล้วเติมบรรทัด merchant_id เข้าไปครับ
                       await FirebaseFirestore.instance.collection('products').add({
                         'name': _addNameController.text.trim(),
                         'price': double.tryParse(_addPriceController.text) ?? 0.0,
                         'cost': double.tryParse(_addCostController.text) ?? 0.0,
-                        'category': _addCategoryController.text.trim().isEmpty ? 'ทั่วไป' : _addCategoryController.text.trim(), // บันทึกหมวดหมู่
+                        'category': _addCategoryController.text.trim().isEmpty ? 'ทั่วไป' : _addCategoryController.text.trim(),
                         'stock': 0,
                         'min_stock': 0,
                         'is_tracking': false,
+                        // 🟢 เพิ่มบรรทัดนี้ ประทับตราร้านค้าลงไปในสินค้า
+                        'merchant_id': FirebaseAuth.instance.currentUser!.uid, 
                         'created_at': FieldValue.serverTimestamp(),
                       });
 

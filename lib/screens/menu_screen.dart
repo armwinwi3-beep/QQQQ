@@ -7,8 +7,11 @@ import '../services/print_slip_service.dart';
 
 class MenuScreen extends StatefulWidget {
   final bool isMerchant;
+  final String? merchantId; // 🟢 เพิ่มตัวรับ ID ร้าน
+  final String? storeName;  // 🟢 เพิ่มตัวรับชื่อร้าน
 
-  const MenuScreen({super.key, this.isMerchant = false});
+  // 🟢 อัปเดต Constructor ให้รับค่า
+  const MenuScreen({super.key, this.isMerchant = false, this.merchantId, this.storeName});
 
   @override
   State<MenuScreen> createState() => _MenuScreenState();
@@ -92,10 +95,11 @@ class _MenuScreenState extends State<MenuScreen> {
       orderType = "walk-in";
     }
 
-    // 1. บันทึกออเดอร์ลงระบบ
+   // 1. บันทึกออเดอร์ลงระบบ (ในไฟล์ menu_screen.dart ฟังก์ชัน _placeOrder)
     DocumentReference docRef = await FirebaseFirestore.instance.collection('orders').add({
       'order_code': newOrderCode,
       'user_id': currentUserId,
+      'merchant_id': widget.merchantId ?? FirebaseAuth.instance.currentUser?.uid, // 🟢 ผูกออเดอร์เข้ากับร้านนี้
       'customer_name': customerName,
       'order_type': orderType,
       'items': orderList,

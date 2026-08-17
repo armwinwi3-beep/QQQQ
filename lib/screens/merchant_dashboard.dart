@@ -238,10 +238,13 @@ void _showOrderDetails(BuildContext context, DocumentSnapshot doc) {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('orders')
+            // 🟢 เพิ่มบรรทัดนี้ เพื่อให้ดึงมาเฉพาะออเดอร์ที่เป็นของร้านตัวเองเท่านั้น
+            .where('merchant_id', isEqualTo: FirebaseAuth.instance.currentUser!.uid) 
             .where('status', isEqualTo: 'pending')
             .orderBy('created_at', descending: false)
             .snapshots(),
         builder: (context, snapshot) {
+          // ... โค้ดเดิม ...
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
