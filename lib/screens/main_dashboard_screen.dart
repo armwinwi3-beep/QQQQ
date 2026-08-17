@@ -20,14 +20,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   int _selectedIndex = 0;
 
   // 🟢 2. อัปเดตรายชื่อหน้าจอที่จะสลับไปมา
+  // 🟢 2. อัปเดตรายชื่อหน้าจอที่จะสลับไปมา
   final List<Widget> _pages = [
     const ReportScreen(),
-    InventoryScreen(),
-    MerchantDashboard(),
-
-    // 🔴 แก้ไขบรรทัดนี้: เติม isMerchant: true เข้าไปในวงเล็บครับ!
-    const MenuScreen(isMerchant: true),
-
+    const InventoryScreen(), // (แอบแนะนำ: เติม const ข้างหน้าแบบนี้ จะช่วยแก้ขีดเส้นใต้สีน้ำเงินได้ด้วยครับ)
+    const MerchantDashboard(), 
+    const MenuScreen(), // 🔴 แก้บรรทัดนี้: ลบ isMerchant: true ออกให้เหลือแค่วงเล็บเปล่าๆ ครับ
     const Center(child: Text('หน้าตั้งค่า')),
   ];
 
