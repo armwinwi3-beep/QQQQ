@@ -266,6 +266,12 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "qr_flutter",
+      "rootUri": "file:///C:/Users/admin/AppData/Local/Pub/Cache/hosted/pub.dev/qr_flutter-4.1.0",
+      "packageUri": "lib/",
+      "languageVersion": "2.19"
+    },
+    {
       "name": "sky_engine",
       "rootUri": "file:///C:/src/flutter_windows_3.47.0-stable/flutter/bin/cache/pkg/sky_engine",
       "packageUri": "lib/",

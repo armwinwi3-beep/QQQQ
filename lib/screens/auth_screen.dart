@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
-import 'admin_dashboard_screen.dart'; // 🟢 เพิ่ม import หน้า Admin
-import 'main_dashboard_screen.dart'; // 🟢 เพิ่ม import หน้า Dashboard แม่ค้า
-import 'store_selection_screen.dart';
+import 'role_check_screen.dart';
+
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
 
@@ -14,78 +13,66 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final AuthService _auth = AuthService();
-  final _usernameController = TextEditingController(); // 🟢 ใช้เป็น Username แทน
+  final _usernameController =
+      TextEditingController(); // 🟢 ใช้เป็น Username แทน
   final _passwordController = TextEditingController();
+  bool _isLoading = false; // 🟢 เพิ่มตัวแปรสำหรับคุมสถานะกำลังโหลด
   bool isLogin = true;
 
-  // 🟢 ฟังก์ชันล็อคอินด้วย Username (แยกระบบแอดมิน)
+  // 🟢 ฟังก์ชันล็อคอินด้วย Username (แยกระบบแอดมิน + เคลียร์เซสชันป้องกันค้าง)
   Future<void> _loginWithUsername() async {
     String username = _usernameController.text.trim().toLowerCase();
     String password = _passwordController.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("กรุณากรอก Username และรหัสผ่าน")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("กรุณากรอก Username และรหัสผ่าน")));
+      }
       return;
     }
 
+    setState(() {
+      _isLoading = true; // เริ่มหมุน
+    });
+
     try {
-      // 1. เช็คว่าเป็นแอดมินหรือแม่ค้าทั่วไป
-      String loginEmail = "";
-      if (username == 'admin') {
-        loginEmail = "admin@btadapp.com"; 
-      } else {
-        loginEmail = "$username@btadapp.com"; 
-      }
+      String loginEmail =
+          (username == 'admin') ? "admin@btadapp.com" : "$username@btadapp.com";
 
-      // 2. ให้ Firebase ล็อคอิน และเก็บผลลัพธ์ไว้
-      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: loginEmail, 
-        password: password
-      );
-      
-      // 3. ดึงข้อมูลสิทธิ์ (Role) ให้เสร็จเรียบร้อยก่อน
-      String role = 'customer'; 
-      if (username == 'admin') {
-        role = 'admin';
-      } else {
-        // นำ uid ที่เพิ่งล็อกอินสำเร็จมาค้นหาใน Firestore ทันที
-        DocumentSnapshot userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid) 
-            .get();
-        
-        if (userDoc.exists) {
-          var data = userDoc.data() as Map<String, dynamic>;
-          role = data['role'] ?? 'customer';
-        }
+      // สั่งล็อกอินตรงๆ ทันที ไม่เรียก signOut() ซ้ำซ้อนเพื่อกันค้าง
+      await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: loginEmail, password: password);
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const RoleCheckScreen()),
+          (Route<dynamic> route) => false,
+        );
       }
-
-      // 4. แยกว่าจะพาไปหน้าไหน 
-      if (context.mounted) {
-        if (role == 'admin') {
-          // ไปหน้าแอดมิน (สร้างร้านค้า)
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const AdminDashboardScreen()));
-        } else if (role == 'merchant') {
-          // ไปหน้า Dashboard ของแม่ค้า
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainDashboardScreen()));
-        } else {
-          // 🟢 เพิ่มบล็อกนี้ สำหรับพาลูกค้าไปหน้าเลือกร้านค้า
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const StoreSelectionScreen()));
-        }
-      }
-
     } on FirebaseAuthException catch (e) {
+      // <--- บรรทัดที่ 45 ในรูปของคุณคือตรงนี้ครับ
       String message = "เข้าสู่ระบบไม่สำเร็จ";
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        message = "Username หรือรหัสผ่านไม่ถูกต้อง";
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message), backgroundColor: Colors.red));
       }
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
     } catch (e) {
-      // 🟢 เพิ่มตัวนี้ เพื่อดักจับปัญหาเวลา Firebase มีปัญหา จะได้รู้ว่าเกิดจากอะไร
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("เกิดข้อผิดพลาด: $e"), backgroundColor: Colors.orange));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("เกิดข้อผิดพลาด: $e"),
+            backgroundColor: Colors.orange));
+      }
+    } finally {
+      // บล็อกนี้บังคับทำงานเสมอ ปุ่มจะหายค้างทันทีไม่ว่าจะสำเร็จหรือพัง
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
-  
+
   // 🟢 ฟังก์ชันสำหรับเข้าสู่ระบบด้วย Google (ลูกค้าทั่วไป)
   Future<void> _signInWithGoogle() async {
     try {
@@ -106,7 +93,7 @@ class _AuthScreenState extends State<AuthScreen> {
               .doc(user.uid)
               .set({
             'email': user.email,
-            'role': 'customer', 
+            'role': 'customer',
             'created_at': FieldValue.serverTimestamp(),
           });
         }
@@ -115,7 +102,8 @@ class _AuthScreenState extends State<AuthScreen> {
       debugPrint("Google Login Error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("เกิดข้อผิดพลาดในการล็อกอินด้วย Google")),
+          const SnackBar(
+              content: Text("เกิดข้อผิดพลาดในการล็อกอินด้วย Google")),
         );
       }
     }
@@ -169,7 +157,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'ชื่อผู้ใช้ (Username)',
-                    prefixIcon: const Icon(Icons.person_outline, color: Colors.grey),
+                    prefixIcon:
+                        const Icon(Icons.person_outline, color: Colors.grey),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -179,7 +168,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1F7A83), width: 2),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF1F7A83), width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
@@ -193,7 +183,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: 'รหัสผ่าน (Password)',
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.grey),
+                    prefixIcon:
+                        const Icon(Icons.lock_outline, color: Colors.grey),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -203,7 +194,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF1F7A83), width: 2),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF1F7A83), width: 2),
                     ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
@@ -215,21 +207,27 @@ class _AuthScreenState extends State<AuthScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (isLogin) {
-                        // 🟢 ถ้าเป็นโหมดล็อกอิน เรียกใช้ฟังก์ชันที่เช็คแอดมิน
-                        await _loginWithUsername();
-                      } else {
-                        // 🟢 ถ้าเป็นโหมดสมัครสมาชิก (ลูกค้าทั่วไป) ให้แปลงเป็นอีเมลจำลอง
-                        String fakeEmail = "${_usernameController.text.trim().toLowerCase()}@btadapp.com";
-                        var user = await _auth.signUp(fakeEmail, _passwordController.text, 'customer');
+                    // 🟢 ถ้ากำลังโหลดอยู่ ให้กดซ้ำไม่ได้ (ป้องกันปุ่มเบิิล)
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (isLogin) {
+                              await _loginWithUsername();
+                            } else {
+                              // โหมดสมัครสมาชิกเดิมของคุณ
+                              String fakeEmail =
+                                  "${_usernameController.text.trim().toLowerCase()}@btadapp.com";
+                              var user = await _auth.signUp(fakeEmail,
+                                  _passwordController.text, 'customer');
 
-                        if (user == null && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("เกิดข้อผิดพลาดในการสมัครสมาชิก")));
-                        }
-                      }
-                    },
+                              if (user == null && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            "เกิดข้อผิดพลาดในการสมัครสมาชิก")));
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1F7A83),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -238,14 +236,24 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: Text(
-                      isLogin ? "เข้าสู่ระบบ" : "สมัครสมาชิก",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    // 🟢 ถ้ากำลังโหลดอยู่ ให้โชว์วงกลมหมุนๆ แทนตัวหนังสือ
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            isLogin ? "เข้าสู่ระบบ" : "สมัครสมาชิก",
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -270,7 +278,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       Expanded(child: Divider()),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text("หรือ", style: TextStyle(color: Colors.grey)),
+                        child:
+                            Text("หรือ", style: TextStyle(color: Colors.grey)),
                       ),
                       Expanded(child: Divider()),
                     ],
@@ -282,7 +291,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _signInWithGoogle,
-                    icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.red),
+                    icon: const Icon(Icons.g_mobiledata,
+                        size: 32, color: Colors.red),
                     label: const Text(
                       'เข้าสู่ระบบด้วย Google',
                       style: TextStyle(color: Colors.black87, fontSize: 15),
@@ -306,10 +316,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       var user = await _auth.signInGuest();
                       if (user == null && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("เกิดข้อผิดพลาดในการเข้าสู่ระบบ Guest")));
+                            const SnackBar(
+                                content: Text(
+                                    "เกิดข้อผิดพลาดในการเข้าสู่ระบบ Guest")));
                       }
                     },
-                    icon: const Icon(Icons.person_outline, color: Colors.black54),
+                    icon:
+                        const Icon(Icons.person_outline, color: Colors.black54),
                     label: const Text(
                       'เข้าใช้งานโดยไม่สมัครสมาชิก (Guest)',
                       style: TextStyle(color: Colors.black87),

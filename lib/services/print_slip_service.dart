@@ -94,9 +94,13 @@ class PrintSlipService {
     );
 
     // คำสั่งนี้จะเด้งหน้าต่าง Preview ของเบราว์เซอร์/มือถือ ให้กดสั่งปริ้นท์ได้เลย
+    // 🟢 สร้างไฟล์ PDF และบังคับดาวน์โหลด หรือแชร์/เซฟลงเครื่องโดยตรง
+    final bytes = await doc.save();
+    // แทนที่จะใช้ Printing.sharePdf อย่างเดียว ให้ใช้ Printing.layoutPdf
+    // เพราะบน Web จะเปิดหน้าต่าง Preview ให้กดพิมพ์หรือเซฟ PDF ลงเครื่องได้ทันที
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => doc.save(),
-      name: 'Receipt_$queueNumber', // ชื่อไฟล์ตอนเซฟ
+      name: 'Receipt_$queueNumber.pdf',
     );
   }
 }

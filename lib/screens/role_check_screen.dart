@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'menu_screen.dart';
 import 'merchant_dashboard.dart';
 import 'auth_screen.dart';
 import 'main_dashboard_screen.dart';
+import 'admin_dashboard_screen.dart';
+import 'store_selection_screen.dart';
 
 class RoleCheckScreen extends StatelessWidget {
   const RoleCheckScreen({super.key});
@@ -16,8 +17,7 @@ class RoleCheckScreen extends StatelessWidget {
       builder: (context, authSnapshot) {
         // 1. เช็คว่า ล็อกอินหรือยัง?
         if (authSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-              body: Center(child: CircularProgressIndicator()));
+          return Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
         User? user = authSnapshot.data;
@@ -35,23 +35,31 @@ class RoleCheckScreen extends StatelessWidget {
               .get(),
           builder: (context, userSnapshot) {
             if (userSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()));
+              return Scaffold(body: Center(child: CircularProgressIndicator()));
             }
 
-            // ถ้าเจอข้อมูลใน Collection 'users'
-            if (userSnapshot.hasData && userSnapshot.data!.exists) {
-              String role = userSnapshot.data!['role'];
+            // ถ้าเจอข้อมูลใน Collection 'users' หรือเช็กจากอีเมลตรงๆ
+            if (user.email == 'admin@btadapp.com') {
+              return AdminDashboardScreen(); // 🟢 บังคับให้แอดมินเข้าหน้าแอดมินเสมอ
+            }
 
-              if (role == 'merchant') {
-                return MainDashboardScreen(); // แม่ค้า ไป Dashboard
-              } else {
-                return MenuScreen(); // ลูกค้าทั่วไป ไปหน้าเมนู
+            if (userSnapshot.hasData && userSnapshot.data!.exists) {
+              var data = userSnapshot.data!.data() as Map<String, dynamic>?;
+              String role = data?['role'] ?? 'customer';
+
+              if (role == 'admin') {
+                return AdminDashboardScreen();
+              } else if (role == 'merchant') {
+                return MainDashboardScreen();
+              } else if (role == 'customer' || role == 'user') {
+                return StoreSelectionScreen();
               }
             }
 
-            // ถ้าไม่เจอข้อมูล (แปลว่าเป็น Guest) ให้ไปหน้าเมนู
-            return MenuScreen();
+            return StoreSelectionScreen();
+
+            // ถ้าไม่เจอข้อมูล (แปลว่าเป็น Guest หรือยังไม่ได้กำหนด Role) ให้ไปหน้าเลือกร้านค้า
+            return StoreSelectionScreen();
           },
         );
       },

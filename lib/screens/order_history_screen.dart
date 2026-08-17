@@ -71,6 +71,8 @@ class OrderHistoryScreen extends StatelessWidget {
                       itemBuilder: (context, index) {
                         var doc = orders[index];
                         var orderData = doc.data() as Map<String, dynamic>;
+                        String merchantName =
+                            orderData['merchant_name'] ?? 'ไม่ระบุชื่อร้าน';
                         String docId = doc.id;
                         String orderCode =
                             orderData['order_code'] ?? 'ไม่มีรหัส';
@@ -124,7 +126,8 @@ class OrderHistoryScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: Colors.black.withOpacity(
+                                    0.04), // 🟢 แก้ไขตรงนี้ให้รองรับ Flutter เวอร์ชั่นเก่า/ใหม่
                                 blurRadius: 8,
                                 offset: const Offset(0, 4),
                               )
@@ -135,8 +138,9 @@ class OrderHistoryScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(16),
-                              // 🔴 พอกดการ์ด จะเรียก Popup แบบโค้ดเก่าของคุณเลย
-
+                              // 🟢 เพิ่มคำสั่ง onTap ตรงนี้! พอกดแล้วจะเรียก Popup ข้อมูลออเดอร์
+                              onTap: () =>
+                                  _showHistoryDetail(context, orderData, docId),
                               child: Padding(
                                 padding: const EdgeInsets.all(16.0),
                                 child: Column(
@@ -146,13 +150,32 @@ class OrderHistoryScreen extends StatelessWidget {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          "ออเดอร์: $orderCode",
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1D5A5D)),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            // 🟢 โชว์ชื่อร้าน
+                                            Text(
+                                              merchantName,
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF1D5A5D),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            // 🟢 โชว์รหัสออเดอร์ (ตัวเล็กลงมาหน่อย)
+                                            Text(
+                                              "ออเดอร์: $orderCode",
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            ),
+                                          ],
                                         ),
+
+                                        // ป้ายสถานะเดิมของคุณ
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: 10, vertical: 4),
@@ -162,7 +185,7 @@ class OrderHistoryScreen extends StatelessWidget {
                                                 BorderRadius.circular(20),
                                           ),
                                           child: Text(
-                                            statusText,
+                                            statusText, // ตรงนี้มันจะแปลกสี/ข้อความตามสเต็ปให้เอง!
                                             style: TextStyle(
                                                 color: statusTextColor,
                                                 fontSize: 12,
@@ -214,11 +237,12 @@ class OrderHistoryScreen extends StatelessWidget {
     );
   }
 
-  // 🔴 ฟังก์ชัน Popup แสดงรายละเอียด (อัปเกรดให้สวยขึ้น)
+  // 🔴 ฟังก์ชัน Popup แสดงรายละเอียด
+  // 🔴 ฟังก์ชัน Popup แสดงรายละเอียด (อัปเกรดแก้ปัญหาจอดำค้าง)
   void _showHistoryDetail(
       BuildContext context, Map<String, dynamic> data, String docId) {
-    var items =
-        (data['items'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    // 1. ดึงข้อมูลแบบปลอดภัย ป้องกันปัญหา Type Casting Error
+    List<dynamic> items = data['items'] ?? [];
     var total = data['total_price'] ?? 0;
     var orderCode = data['order_code'] ?? 'ไม่มีรหัส';
 
@@ -231,19 +255,24 @@ class OrderHistoryScreen extends StatelessWidget {
           title: Text("รายการอาหาร ($orderCode)",
               style: const TextStyle(
                   color: Color(0xFF1D5A5D), fontWeight: FontWeight.bold)),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: ListView.builder(
+
+          // 2. จัด Layout ใหม่ให้ปลอดภัย 100% ไม่ใช้ Flexible
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              // ป้องกันของเยอะจนล้นขอบจอ
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListView.builder(
                     shrinkWrap: true,
+                    physics:
+                        const NeverScrollableScrollPhysics(), // ปิดการเลื่อนซ้อนกัน
                     itemCount: items.length,
                     itemBuilder: (context, index) {
-                      var item = items[index];
-                      int price = item['price'] ?? 0;
-                      int qty = item['qty'] ?? 0;
+                      var item = items[index] as Map<String, dynamic>;
+                      int price = (item['price'] ?? 0).toInt();
+                      int qty = (item['qty'] ?? 0).toInt();
 
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
@@ -257,27 +286,27 @@ class OrderHistoryScreen extends StatelessWidget {
                       );
                     },
                   ),
-                ),
-                const Divider(thickness: 1),
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("ราคารวมทั้งหมด:",
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(
-                        "$total บาท",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Color(0xFF1F7A83)),
-                      ),
-                    ],
+                  const Divider(thickness: 1),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text("ราคารวมทั้งหมด:",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(
+                          "$total บาท",
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Color(0xFF1F7A83)),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
