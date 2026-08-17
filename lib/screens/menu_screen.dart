@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'order_tracker.dart';
 import 'order_history_screen.dart';
-import '../services/print_slip_service.dart';
+import 'slip_preview_screen.dart';
 
 class MenuScreen extends StatefulWidget {
   final bool isMerchant;
@@ -153,26 +153,14 @@ class _MenuScreenState extends State<MenuScreen> {
     });
 
     if (context.mounted) {
-      if (widget.isMerchant) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("รับออเดอร์หน้าร้านสำเร็จ!"),
-            backgroundColor: Colors.green,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OrderTracker(
+            orderId: docRef.id,
           ),
-        );
-
-        await PrintSlipService.printOrderSlip(
-          queueNumber: newOrderCode,
-          items: orderList,
-          totalPrice: totalPrice,
-          orderId: docRef.id,
-        );
-      } else {
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (context) => OrderTracker(orderId: docRef.id)));
-      }
+        ),
+      );
     }
   }
 

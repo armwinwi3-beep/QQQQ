@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class PrintSlipService {
-  // ฟังก์ชันสำหรับเรียกปริ้นท์สลิป
-  static Future<void> printOrderSlip({
+  /// สร้าง PDF ของสลิป แล้วคืนค่าเป็น bytes
+  static Future<Uint8List> generatePdf({
     required String queueNumber,
     required List<Map<String, dynamic>> items,
     required double totalPrice,
@@ -13,46 +14,60 @@ class PrintSlipService {
   }) async {
     final doc = pw.Document();
 
-    // 🔴 โหลดฟอนต์ภาษาไทย (Sarabun) อัตโนมัติจาก Google Fonts (แก้ปัญหาภาษาไทยเป็นสี่เหลี่ยม)
-    final thaiFont = await PdfGoogleFonts.sarabunRegular();
-    final thaiFontBold = await PdfGoogleFonts.sarabunBold();
+    final fontRegular = await rootBundle.load('assets/fonts/Kanit-Regular.ttf');
+    final fontBold = await rootBundle.load('assets/fonts/Kanit-Bold.ttf');
 
-    // ลิงก์สำหรับให้ลูกค้าสแกนดูคิว (เปลี่ยนเป็นลิงก์เว็บของคุณ)
-    final String trackingUrl = "https://qqqq-eb471.web.app/#/track?id=$orderId";
+    final thaiFont = pw.Font.ttf(fontRegular);
+    final thaiFontBold = pw.Font.ttf(fontBold);
+    final trackingUrl = 'https://qqqq-eb471.web.app/#/track?id=$orderId';
 
-    // เริ่มวาดหน้าสลิป
     doc.addPage(
       pw.Page(
-        // ตั้งค่าหน้ากระดาษเป็นสลิปความร้อนขนาด 80mm (ถ้าเครื่องปริ้นท์เล็กให้ใช้ roll57)
         pageFormat: PdfPageFormat.roll80,
+        margin: const pw.EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 10,
+        ),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              // 1. หัวสลิป
-              pw.Text("ร้านป้าต้อย",
-                  style: pw.TextStyle(font: thaiFontBold, fontSize: 24)),
+              pw.Text(
+                'ร้านป้าต้อย',
+                style: pw.TextStyle(font: thaiFontBold, fontSize: 24),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 5),
-              pw.Text("คิวของคุณ",
-                  style: pw.TextStyle(font: thaiFont, fontSize: 16)),
-
-              // 2. หมายเลขคิวตัวใหญ่ๆ
-              pw.Text(queueNumber,
-                  style: pw.TextStyle(font: thaiFontBold, fontSize: 45)),
+              pw.Text(
+                'คิวของคุณ',
+                style: pw.TextStyle(font: thaiFont, fontSize: 16),
+              ),
+              pw.Text(
+                queueNumber,
+                style: pw.TextStyle(
+                    font: thaiFontBold, fontSize: 45, lineSpacing: 1.2),
+              ),
               pw.Divider(
-                  thickness: 1, borderStyle: pw.BorderStyle.dashed), // เส้นประ
+                thickness: 1,
+                borderStyle: pw.BorderStyle.dashed,
+              ),
 
-              // 3. รายการอาหาร (วนลูปแสดงตามที่สั่ง)
+              // 3. รายการอาหาร (แสดงชื่อพร้อมจำนวนฝั่งซ้าย และราคารวมของรายการนั้นฝั่งขวา)
               ...items.map((item) {
+                double itemTotal = (item['price'] ?? 0) * (item['qty'] ?? 1);
                 return pw.Container(
                   margin: const pw.EdgeInsets.only(bottom: 4),
                   child: pw.Row(
                     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                     children: [
-                      pw.Text("${item['name']} x${item['qty']}",
-                          style: pw.TextStyle(font: thaiFont, fontSize: 14)),
-                      pw.Text("${item['price']} ฿",
-                          style: pw.TextStyle(font: thaiFont, fontSize: 14)),
+                      pw.Text(
+                        "${item['name']} x${item['qty']}",
+                        style: pw.TextStyle(font: thaiFont, fontSize: 12),
+                      ),
+                      pw.Text(
+                        "${itemTotal.toStringAsFixed(0)} ฿",
+                        style: pw.TextStyle(font: thaiFont, fontSize: 12),
+                      ),
                     ],
                   ),
                 );
@@ -60,19 +75,27 @@ class PrintSlipService {
 
               pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
 
-              // 4. ยอดรวม
+              // 4. ยอดรวมทั้งสิ้น
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text("ยอดรวมทั้งสิ้น",
-                      style: pw.TextStyle(font: thaiFontBold, fontSize: 16)),
-                  pw.Text("$totalPrice ฿",
-                      style: pw.TextStyle(font: thaiFontBold, fontSize: 16)),
+                  pw.Text(
+                    "ยอดรวมทั้งสิ้น",
+                    style: pw.TextStyle(
+                      font: thaiFontBold,
+                      fontSize: 14, // 🟢 ปรับลดขนาดลงเล็กน้อยเช่นกัน
+                    ),
+                  ),
+                  pw.Text(
+                    "$totalPrice ฿",
+                    style: pw.TextStyle(
+                      font: thaiFontBold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               pw.SizedBox(height: 20),
-
-              // 5. QR Code ให้ลูกค้าสแกน (สร้างง่ายๆ ด้วยวิดเจ็ต Barcode ของ pdf เลย)
               pw.BarcodeWidget(
                 barcode: pw.Barcode.qrCode(),
                 data: trackingUrl,
@@ -80,27 +103,48 @@ class PrintSlipService {
                 height: 100,
               ),
               pw.SizedBox(height: 10),
-              pw.Text("สแกนคิวอาร์โค้ด",
-                  style: pw.TextStyle(font: thaiFontBold, fontSize: 14)),
-              pw.Text("เพื่อดูสถานะคิวของคุณบนมือถือ",
-                  style: pw.TextStyle(font: thaiFont, fontSize: 12)),
+              pw.Text(
+                'สแกนคิวอาร์โค้ด',
+                style: pw.TextStyle(font: thaiFontBold, fontSize: 14),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.Text(
+                'เพื่อดูสถานะคิวของคุณบนมือถือ',
+                style: pw.TextStyle(font: thaiFont, fontSize: 12),
+                textAlign: pw.TextAlign.center,
+              ),
               pw.SizedBox(height: 10),
-              pw.Text("ขอบคุณที่ใช้บริการค่ะ",
-                  style: pw.TextStyle(font: thaiFont, fontSize: 12)),
+              pw.Text(
+                'ขอบคุณที่ใช้บริการค่ะ',
+                style: pw.TextStyle(font: thaiFont, fontSize: 12),
+                textAlign: pw.TextAlign.center,
+              ),
             ],
           );
         },
       ),
     );
 
-    // คำสั่งนี้จะเด้งหน้าต่าง Preview ของเบราว์เซอร์/มือถือ ให้กดสั่งปริ้นท์ได้เลย
-    // 🟢 สร้างไฟล์ PDF และบังคับดาวน์โหลด หรือแชร์/เซฟลงเครื่องโดยตรง
-    final bytes = await doc.save();
-    // แทนที่จะใช้ Printing.sharePdf อย่างเดียว ให้ใช้ Printing.layoutPdf
-    // เพราะบน Web จะเปิดหน้าต่าง Preview ให้กดพิมพ์หรือเซฟ PDF ลงเครื่องได้ทันที
+    return doc.save();
+  }
+
+  /// ใช้ได้กับจุดอื่นที่ต้องการเปิดระบบพิมพ์โดยตรง
+  static Future<void> printOrderSlip({
+    required String queueNumber,
+    required List<Map<String, dynamic>> items,
+    required double totalPrice,
+    required String orderId,
+  }) async {
     await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => doc.save(),
       name: 'Receipt_$queueNumber.pdf',
+      onLayout: (PdfPageFormat format) {
+        return generatePdf(
+          queueNumber: queueNumber,
+          items: items,
+          totalPrice: totalPrice,
+          orderId: orderId,
+        );
+      },
     );
   }
 }

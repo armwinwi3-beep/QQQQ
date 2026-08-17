@@ -16,6 +16,7 @@ class MerchantDashboard extends StatelessWidget {
         data['order_code'] ?? doc.id; // ดึงรหัสออเดอร์มาใช้ตอนบันทึกประวัติ
     String status = data['status'] ?? 'pending';
     String docId = doc.id; // 🟢 เพิ่มบรรทัดนี้เข้าไป
+
     showDialog(
         context: context,
         builder: (context) {
@@ -128,7 +129,29 @@ class MerchantDashboard extends StatelessWidget {
                             style: TextStyle(color: Colors.grey)),
                       ),
                       const SizedBox(width: 8),
+                      // 🟢 1. ปุ่มยกเลิกออเดอร์ (ให้โชว์เฉพาะตอนที่ออเดอร์ยังไม่เสร็จสิ้นหรือยังไม่ถูกยกเลิก)
+                      if (status != 'completed' && status != 'cancelled')
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            // อัปเดตสถานะใน Firebase เป็น 'cancelled'
+                            await FirebaseFirestore.instance
+                                .collection('orders')
+                                .doc(doc.id)
+                                .update({'status': 'cancelled'});
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.cancel,
+                              color: Colors.red, size: 18),
+                          label: const Text("ยกเลิกออเดอร์",
+                              style: TextStyle(color: Colors.red)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
 
+                      const SizedBox(width: 8),
                       // ถ้าสถานะเป็น 'pending' (รอดำเนินการ) ให้โชว์ปุ่ม "รับออเดอร์/กำลังทำ"
                       if (status == 'pending')
                         ElevatedButton.icon(
@@ -246,6 +269,20 @@ class MerchantDashboard extends StatelessWidget {
                   Timestamp? createdAt = data['created_at'] as Timestamp?;
                   String orderCode = data['order_code'] ?? doc.id;
 
+// 🟢 1. ต้องดึงและเช็กเงื่อนไขตรงนี้ ก่อนจะสั่ง return Card
+                  String status = data['status'] ?? 'pending';
+                  String statusText = 'รอดำเนินการ';
+                  Color statusColor = Colors.orange;
+                  if (status == 'cooking') {
+                    statusText = 'กำลังทำอาหาร';
+                    statusColor = Colors.blue;
+                  } else if (status == 'completed') {
+                    statusText = 'เสร็จสิ้น';
+                    statusColor = Colors.green;
+                  } else if (status == 'cancelled') {
+                    statusText = 'ยกเลิกแล้ว';
+                    statusColor = Colors.red;
+                  }
                   return Card(
                     margin:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -260,8 +297,15 @@ class MerchantDashboard extends StatelessWidget {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("สถานะ: รอดำเนินการ",
-                              style: TextStyle(color: Colors.orange)),
+                          // 🟢 2. เปลี่ยนมาใช้ตัวแปร dynamic (เอาคำว่า const ออกด้วยนะครับ เพราะสีและข้อความต้องเปลี่ยนตามตัวแปร)
+                          Text(
+                            "สถานะ: $statusText",
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
                           TimeElapsedWidget(createdAt: createdAt),
                         ],
                       ),

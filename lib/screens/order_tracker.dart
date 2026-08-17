@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'slip_preview_screen.dart';
 
 class OrderTracker extends StatelessWidget {
   final String orderId; // รับ ID ของออเดอร์มาจากหน้าเมนู
@@ -151,6 +152,61 @@ class OrderTracker extends StatelessWidget {
                           color: statusColor,
                         ),
                       ),
+                      const SizedBox(height: 28),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            final itemsRaw = data['items'];
+
+                            final List<Map<String, dynamic>> items =
+                                itemsRaw is List
+                                    ? itemsRaw
+                                        .map(
+                                          (item) => Map<String, dynamic>.from(
+                                              item as Map),
+                                        )
+                                        .toList()
+                                    : [];
+
+                            final double totalPrice =
+                                (data['total_price'] ?? 0).toDouble();
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SlipPreviewScreen(
+                                  queueNumber: orderCode,
+                                  items: items,
+                                  totalPrice: totalPrice,
+                                  orderId: orderId,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.receipt_long,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'ดูสลิป / พรีวิวใบเสร็จ',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1D5A5D),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: 16),
                       Text(
                         "สถานะในระบบ: $status",
