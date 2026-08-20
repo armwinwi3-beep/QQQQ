@@ -123,17 +123,19 @@ class MerchantDashboard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      // 1. ปุ่มปิด
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: const Text("ปิด",
                             style: TextStyle(color: Colors.grey)),
                       ),
-                      const SizedBox(width: 8),
-                      // 🟢 1. ปุ่มยกเลิกออเดอร์ (ให้โชว์เฉพาะตอนที่ออเดอร์ยังไม่เสร็จสิ้นหรือยังไม่ถูกยกเลิก)
-                      if (status != 'completed' && status != 'cancelled')
-                        OutlinedButton.icon(
+
+                      const SizedBox(width: 4),
+
+                      // 2. ห่อด้วย Expanded หรือใช้ Flexible เพื่อให้ปุ่มขยาย/ย่อตามพื้นที่ที่เหลือได้
+                      Expanded(
+                        child: OutlinedButton.icon(
                           onPressed: () async {
-                            // อัปเดตสถานะใน Firebase เป็น 'cancelled'
                             await FirebaseFirestore.instance
                                 .collection('orders')
                                 .doc(doc.id)
@@ -141,54 +143,40 @@ class MerchantDashboard extends StatelessWidget {
                             if (context.mounted) Navigator.pop(context);
                           },
                           icon: const Icon(Icons.cancel,
-                              color: Colors.red, size: 18),
+                              color: Colors.red, size: 16),
                           label: const Text("ยกเลิกออเดอร์",
-                              style: TextStyle(color: Colors.red)),
+                              style:
+                                  TextStyle(fontSize: 13, color: Colors.red)),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Colors.red),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
                           ),
                         ),
+                      ),
 
-                      const SizedBox(width: 8),
-                      // ถ้าสถานะเป็น 'pending' (รอดำเนินการ) ให้โชว์ปุ่ม "รับออเดอร์/กำลังทำ"
-                      if (status == 'pending')
-                        ElevatedButton.icon(
+                      const SizedBox(width: 4),
+
+                      // 3. ปุ่มเริ่มทำอาหาร
+                      Expanded(
+                        child: ElevatedButton.icon(
                           onPressed: () async {
-                            // อัปเดตสถานะเป็น 'cooking'
                             await FirebaseFirestore.instance
                                 .collection('orders')
-                                .doc(docId)
+                                .doc(doc.id)
                                 .update({'status': 'cooking'});
                             if (context.mounted) Navigator.pop(context);
                           },
                           icon: const Icon(Icons.soup_kitchen,
-                              color: Colors.white),
+                              color: Colors.white, size: 16),
                           label: const Text("เริ่มทำอาหาร",
-                              style: TextStyle(color: Colors.white)),
+                              style:
+                                  TextStyle(fontSize: 13, color: Colors.white)),
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange),
-                        )
-
-                      // ถ้าสถานะเป็น 'cooking' (กำลังทำอยู่) ให้โชว์ปุ่ม "เสร็จสิ้น"
-                      else if (status == 'cooking')
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            // อัปเดตสถานะเป็น 'completed'
-                            await FirebaseFirestore.instance
-                                .collection('orders')
-                                .doc(docId)
-                                .update({'status': 'completed'});
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.check_circle,
-                              color: Colors.white),
-                          label: const Text("ทำรายการเสร็จสิ้น",
-                              style: TextStyle(color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1D5A5D)),
+                            backgroundColor: Colors.orange,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
                         ),
+                      ),
                     ],
                   )
                 ],
@@ -261,59 +249,66 @@ class MerchantDashboard extends StatelessWidget {
               }
 
               // 4. ถ้ามีออเดอร์ แสดงผลเป็น ListView
-              return ListView.builder(
-                itemCount: orders.length,
-                itemBuilder: (context, index) {
-                  var doc = orders[index];
-                  var data = doc.data() as Map<String, dynamic>;
-                  Timestamp? createdAt = data['created_at'] as Timestamp?;
-                  String orderCode = data['order_code'] ?? doc.id;
-
-// 🟢 1. ต้องดึงและเช็กเงื่อนไขตรงนี้ ก่อนจะสั่ง return Card
-                  String status = data['status'] ?? 'pending';
-                  String statusText = 'รอดำเนินการ';
-                  Color statusColor = Colors.orange;
-                  if (status == 'cooking') {
-                    statusText = 'กำลังทำอาหาร';
-                    statusColor = Colors.blue;
-                  } else if (status == 'completed') {
-                    statusText = 'เสร็จสิ้น';
-                    statusColor = Colors.green;
-                  } else if (status == 'cancelled') {
-                    statusText = 'ยกเลิกแล้ว';
-                    statusColor = Colors.red;
-                  }
-                  return Card(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF1F7A83),
-                        child: Text("${index + 1}",
-                            style: const TextStyle(color: Colors.white)),
-                      ),
-                      title: Text("ออเดอร์: $orderCode",
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 🟢 2. เปลี่ยนมาใช้ตัวแปร dynamic (เอาคำว่า const ออกด้วยนะครับ เพราะสีและข้อความต้องเปลี่ยนตามตัวแปร)
-                          Text(
-                            "สถานะ: $statusText",
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          TimeElapsedWidget(createdAt: createdAt),
-                        ],
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () => _showOrderDetails(context, doc),
-                    ),
-                  );
+              // 4. ถ้ามีออเดอร์ แสดงผลเป็น ListView (🟢 เติมคำว่า return ตรงนี้ครับ)
+              return RefreshIndicator(
+                onRefresh: () async {
+                  await Future.delayed(const Duration(milliseconds: 500));
                 },
+                child: ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    var doc = orders[index];
+                    var data = doc.data() as Map<String, dynamic>;
+                    Timestamp? createdAt = data['created_at'] as Timestamp?;
+                    String orderCode = data['order_code'] ?? doc.id;
+
+                    String status = data['status'] ?? 'pending';
+                    String statusText = 'รอดำเนินการ';
+                    Color statusColor = Colors.orange;
+
+                    if (status == 'cooking') {
+                      statusText = 'กำลังทำอาหาร';
+                      statusColor = Colors.blue;
+                    } else if (status == 'completed') {
+                      statusText = 'เสร็จสิ้น';
+                      statusColor = Colors.green;
+                    } else if (status == 'cancelled') {
+                      statusText = 'ยกเลิกแล้ว';
+                      statusColor = Colors.red;
+                    }
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: const Color(0xFF1F7A83),
+                          child: Text("${index + 1}",
+                              style: const TextStyle(color: Colors.white)),
+                        ),
+                        title: Text("ออเดอร์: $orderCode",
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "สถานะ: $statusText",
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            TimeElapsedWidget(createdAt: createdAt),
+                          ],
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => _showOrderDetails(context, doc),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           );
