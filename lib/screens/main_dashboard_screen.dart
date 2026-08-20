@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ดึงไฟล์หน้าย่อยเข้ามาใช้งาน
 import 'report_screen.dart';
@@ -24,7 +25,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   final List<Widget> _pages = [
     const ReportScreen(),
     const InventoryScreen(), // (แอบแนะนำ: เติม const ข้างหน้าแบบนี้ จะช่วยแก้ขีดเส้นใต้สีน้ำเงินได้ด้วยครับ)
-    const MerchantDashboard(), 
+    const MerchantDashboard(),
     const MenuScreen(), // 🔴 แก้บรรทัดนี้: ลบ isMerchant: true ออกให้เหลือแค่วงเล็บเปล่าๆ ครับ
     const Center(child: Text('หน้าตั้งค่า')),
   ];
@@ -42,16 +43,50 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             await FirebaseAuth.instance.signOut();
           },
         ),
-        title: const Column(
-          children: [
-            Text('ป้าต้อย',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold)),
-            Text('B.T.Ad.App',
-                style: TextStyle(color: Colors.white70, fontSize: 12)),
-          ],
+        // 🟢 เปลี่ยน Title เป็น FutureBuilder เพื่อดึงข้อมูลร้าน
+        title: FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection(
+                  'merchants') // ⚠️ อย่าลืมแก้ตรงนี้เป็นชื่อตารางเก็บข้อมูลร้านของคุณ (เช่น 'users')
+              .doc(FirebaseAuth.instance.currentUser?.uid)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2));
+            }
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              var data = snapshot.data!.data() as Map<String, dynamic>;
+              // ⚠️ อย่าลืมแก้ 'store_name' ให้ตรงกับชื่อฟิลด์ใน Firebase ของคุณ
+              String storeName = data['store_name'] ?? 'ไม่มีชื่อร้าน';
+
+              return Column(
+                children: [
+                  Text(
+                    storeName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'B.T.Ad.App',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              );
+            }
+
+            return const Text(
+              "ไม่พบข้อมูลร้าน",
+              style: TextStyle(color: Colors.white),
+            );
+          },
         ),
         centerTitle: true,
         elevation: 0,
