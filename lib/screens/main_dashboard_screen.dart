@@ -44,10 +44,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           },
         ),
         // 🟢 เปลี่ยน Title เป็น FutureBuilder เพื่อดึงข้อมูลร้าน
+        // 🟢 เปลี่ยน Title เป็น FutureBuilder
         title: FutureBuilder<DocumentSnapshot>(
+          // 👇 แก้ตรงนี้เป็น 'users' ตามรูปที่คุณส่งมาเลยครับ
           future: FirebaseFirestore.instance
-              .collection(
-                  'merchants') // ⚠️ อย่าลืมแก้ตรงนี้เป็นชื่อตารางเก็บข้อมูลร้านของคุณ (เช่น 'users')
+              .collection('users')
               .doc(FirebaseAuth.instance.currentUser?.uid)
               .get(),
           builder: (context, snapshot) {
@@ -61,8 +62,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
             if (snapshot.hasData && snapshot.data!.exists) {
               var data = snapshot.data!.data() as Map<String, dynamic>;
-              // ⚠️ อย่าลืมแก้ 'store_name' ให้ตรงกับชื่อฟิลด์ใน Firebase ของคุณ
-              String storeName = data['store_name'] ?? 'ไม่มีชื่อร้าน';
+
+              // 👇 ดึงชื่อร้าน (ลองดักหาจาก field 'store_name', 'name' หรือ 'merchant_name')
+              String storeName = data['store_name'] ??
+                  data['name'] ??
+                  data['merchant_name'] ??
+                  'ไม่มีชื่อร้าน';
 
               return Column(
                 children: [
@@ -84,7 +89,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
             return const Text(
               "ไม่พบข้อมูลร้าน",
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white, fontSize: 16),
             );
           },
         ),
