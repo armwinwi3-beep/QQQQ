@@ -65,12 +65,16 @@ class _MenuScreenState extends State<MenuScreen> {
         int qty = cart[doc.id]!;
         double price = (data['price'] ?? 0).toDouble();
 
+        // 🟢 1. ดึงต้นทุนของสินค้าชิ้นนี้ออกมาจากฐานข้อมูล
+        double cost = (data['cost'] ?? 0).toDouble();
+
         totalPrice += (price * qty);
         orderList.add({
           'product_id': doc.id,
           'name': data['name'],
           'qty': qty,
-          'price': price
+          'price': price,
+          'cost': cost // 🟢 2. แนบต้นทุนลงไปในรายการออเดอร์
         });
       }
     }

@@ -73,8 +73,14 @@ class _OrderTrackerState extends State<OrderTracker> {
     }
 
     // 2. สั่งเล่นเสียง
+    // 2. สั่งเล่นเสียงแบบปลอดภัย
     if (audioFileName.isNotEmpty) {
-      await _audioPlayer.play(AssetSource(audioFileName));
+      try {
+        await _audioPlayer.play(AssetSource(audioFileName));
+      } catch (e) {
+        // หากเล่นเสียงไม่ได้ (เช่น เบราว์เซอร์บล็อก) ให้ข้ามไปทำงานต่อโดยไม่ค้าง
+        debugPrint("ไม่สามารถเล่นเสียงได้: $e");
+      }
     }
 
     if (!mounted) return;
