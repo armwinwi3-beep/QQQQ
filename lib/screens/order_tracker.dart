@@ -1,11 +1,119 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:audioplayers/audioplayers.dart'; // 🟢 อย่าลืม Import audioplayers
 import 'slip_preview_screen.dart';
 
-class OrderTracker extends StatelessWidget {
+class OrderTracker extends StatefulWidget {
   final String orderId; // รับ ID ของออเดอร์มาจากหน้าเมนู
 
   const OrderTracker({super.key, required this.orderId});
+
+  @override
+  State<OrderTracker> createState() => _OrderTrackerState();
+}
+
+class _OrderTrackerState extends State<OrderTracker> {
+  String? _lastStatus; // เก็บสถานะก่อนหน้าเพื่อเอาไว้เทียบ
+  final AudioPlayer _audioPlayer = AudioPlayer(); // ตัวเล่นเสียง
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToOrderStatus(); // 🟢 เรียกใช้ฟังก์ชันดักจับสถานะตอนเปิดหน้าจอ
+  }
+
+  // ฟังก์ชันสำหรับดักจับการเปลี่ยนแปลงของ Firestore
+  void _listenToOrderStatus() {
+    FirebaseFirestore.instance
+        .collection('orders')
+        .doc(widget.orderId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        var data = snapshot.data() as Map<String, dynamic>;
+        String newStatus = data['status'] ?? 'pending';
+
+        // 🟢 ถ้าสถานะเปลี่ยนไปจากเดิม (และไม่ใช่ตอนเปิดหน้าจอครั้งแรก) ให้แจ้งเตือน
+        if (_lastStatus != null && _lastStatus != newStatus) {
+          _showNotificationPopup(newStatus);
+        }
+        _lastStatus = newStatus; // อัปเดตสถานะล่าสุดเก็บไว้
+      }
+    });
+  }
+
+  // ฟังก์ชันแสดง Popup และเล่นเสียง
+  void _showNotificationPopup(String status) async {
+    String title = "";
+    String message = "";
+    IconData icon = Icons.info;
+    Color color = Colors.blue;
+    String audioFileName = ""; // 🟢 สร้างตัวแปรเก็บชื่อไฟล์เสียง
+
+    // 1. เช็กสถานะเพื่อกำหนดข้อความ หน้าตา Popup และไฟล์เสียง
+    if (status == 'cooking') {
+      title = "ร้านกำลังทำอาหาร!";
+      message = "ออเดอร์ของคุณกำลังถูกเตรียม โปรดรอสักครู่";
+      icon = Icons.soup_kitchen;
+      color = Colors.orange;
+      audioFileName = "sounds/namo.mp3"; // 🎵 เสียงเมื่อเริ่มทำอาหาร
+    } else if (status == 'completed') {
+      title = "อาหารเสร็จแล้ว!";
+      message = "ออเดอร์ของคุณพร้อมแล้ว มารับได้เลยครับ";
+      icon = Icons.check_circle;
+      color = Colors.green;
+      audioFileName = "sounds/malaew.mp3"; // 🎵 เสียงเมื่อทำอาหารเสร็จ
+    } else if (status == 'cancelled') {
+      title = "ออเดอร์ถูกยกเลิก";
+      message = "ขออภัย ออเดอร์ของคุณถูกยกเลิกระบบ";
+      icon = Icons.cancel;
+      color = Colors.red;
+    } else {
+      return; // ถ้าเป็นสถานะอื่นให้ข้ามไป
+    }
+
+    // 2. สั่งเล่นเสียง
+    if (audioFileName.isNotEmpty) {
+      await _audioPlayer.play(AssetSource(audioFileName));
+    }
+
+    if (!mounted) return;
+
+    // 3. แสดง Popup หน้าจอ
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 10),
+            Text(title,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(message, style: const TextStyle(fontSize: 16)),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: color),
+            onPressed: () {
+              _audioPlayer
+                  .stop(); // 🟢 สั่งให้หยุดเสียงทันทีถ้าลูกค้ากดปุ่มตกลง
+              Navigator.pop(context);
+            },
+            child: const Text("ตกลง", style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose(); // คืนหน่วยความจำตัวเล่นเสียง
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +138,7 @@ class OrderTracker extends StatelessWidget {
             // 🔴 ดึงข้อมูลออเดอร์นี้จาก Firebase แบบ Real-time
             stream: FirebaseFirestore.instance
                 .collection('orders')
-                .doc(orderId)
+                .doc(widget.orderId) // 🟢 เปลี่ยนเป็น widget.orderId
                 .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
@@ -181,7 +289,8 @@ class OrderTracker extends StatelessWidget {
                                   queueNumber: orderCode,
                                   items: items,
                                   totalPrice: totalPrice,
-                                  orderId: orderId,
+                                  orderId: widget
+                                      .orderId, // 🟢 เปลี่ยนเป็น widget.orderId
                                 ),
                               ),
                             );

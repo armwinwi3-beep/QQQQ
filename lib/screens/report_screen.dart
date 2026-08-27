@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 🟢 เพิ่ม Import Auth
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -9,17 +10,17 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  String selectedTab = 'วันนี้'; 
+  String selectedTab = 'วันนี้';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F3F1),
-      // 🔴 เอา AppBar ออกไปแล้ว เพื่อไม่ให้ซ้อนกับหน้า Dashboard หลัก
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- แถบเมนูเวลา ---
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -38,118 +39,234 @@ class _ReportScreenState extends State<ReportScreen> {
                 ),
               ),
             ),
-            
+
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Center(
-                child: Text("ร้านป้าต้อย • ข้อมูลยอดขาย", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                child: Text("ข้อมูลยอดขาย",
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
               ),
             ),
 
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text("ยอดขายทั้งหมด", style: TextStyle(fontWeight: FontWeight.bold)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(10)),
-                        child: const Text("ยอดรวม", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text("0.00", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.red)),
-                  const Align(
-                    alignment: Alignment.centerRight,
-                    child: Text("0 บิล", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ),
-                  const Divider(height: 24, thickness: 1),
-                  const Text("ต้นทุน & กำไร", style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(children: [
-                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
-                        const SizedBox(width: 8),
-                        const Text("ต้นทุน", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      ]),
-                      const Text("0.00 บาท", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(children: [
-                        Container(width: 8, height: 8, decoration: const BoxDecoration(color: Color(0xFF1D5A5D), shape: BoxShape.circle)),
-                        const SizedBox(width: 8),
-                        const Text("กำไรสุทธิ", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                      ]),
-                      const Text("0.00 บาท", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    ],
-                  ),
-                ],
-              ),
+            // 🟢 เพิ่ม StreamBuilder ครอบส่วนแสดงยอดขายและกำไร
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('orders')
+                  .where('merchant_id',
+                      isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                  .where('status',
+                      isEqualTo: 'completed') // ดึงเฉพาะคิวที่เสร็จแล้ว
+                  .snapshots(),
+              builder: (context, snapshot) {
+                double totalSales = 0.0;
+                double totalCost = 0.0;
+                int totalBills = 0;
+
+                if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                  var orders = snapshot.data!.docs;
+                  totalBills = orders.length;
+
+                  for (var doc in orders) {
+                    var data = doc.data() as Map<String, dynamic>;
+
+                    // 1. รวมยอดขาย
+                    totalSales += (data['total_price'] ?? 0).toDouble();
+
+                    // 2. รวมต้นทุนจากสินค้าทุกชิ้นในบิล
+                    var items = (data['items'] as List<dynamic>?)
+                            ?.cast<Map<String, dynamic>>() ??
+                        [];
+                    for (var item in items) {
+                      double itemCost =
+                          (item['cost'] ?? 0).toDouble(); // ดึงต้นทุน
+                      int qty = item['qty'] ?? 1;
+                      totalCost += (itemCost * qty);
+                    }
+                  }
+                }
+
+                // 3. คำนวณกำไรสุทธิ
+                double totalProfit = totalSales - totalCost;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- กล่องสรุปยอดขายด้านบน ---
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("ยอดขายทั้งหมด",
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                    color: Colors.grey.shade200,
+                                    borderRadius: BorderRadius.circular(10)),
+                                child: const Text("ยอดรวม",
+                                    style: TextStyle(
+                                        fontSize: 10, color: Colors.grey)),
+                              )
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(totalSales.toStringAsFixed(2),
+                              style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red)),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text("$totalBills บิล",
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12)),
+                          ),
+                          const Divider(height: 24, thickness: 1),
+                          const Text("ต้นทุน & กำไร",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(children: [
+                                Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                        color: Colors.orange,
+                                        shape: BoxShape.circle)),
+                                const SizedBox(width: 8),
+                                const Text("ต้นทุน",
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 13)),
+                              ]),
+                              Text("${totalCost.toStringAsFixed(2)} บาท",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(children: [
+                                Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                        color: Color(0xFF1D5A5D),
+                                        shape: BoxShape.circle)),
+                                const SizedBox(width: 8),
+                                const Text("กำไรสุทธิ",
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 13)),
+                              ]),
+                              Text("${totalProfit.toStringAsFixed(2)} บาท",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // --- รายละเอียดหมวดหมู่เงิน ---
+                    const Padding(
+                      padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+                      child: Text("เงิน",
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.receipt_long,
+                                  color: Color(0xFF1D5A5D)),
+                            ),
+                            title: const Text("ยอดขาย",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: const Text(
+                                "ยอดสด/โอน • บิลเฉลี่ย • รายชั่วโมง...",
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 11)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(totalSales.toStringAsFixed(2),
+                                    style: const TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.print,
+                                    size: 16, color: Colors.grey),
+                                const Icon(Icons.chevron_right,
+                                    color: Colors.grey),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1, indent: 60),
+                          ListTile(
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: const Icon(Icons.calculate_outlined,
+                                  color: Color(0xFF1D5A5D)),
+                            ),
+                            title: const Text("ต้นทุน & กำไร",
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
+                            subtitle: const Text(
+                                "ต้นทุนรวม กำไรสุทธิ และอัตรา...",
+                                style: TextStyle(
+                                    color: Colors.grey, fontSize: 11)),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(totalProfit.toStringAsFixed(2),
+                                    style: const TextStyle(
+                                        color: Color(0xFF1D5A5D),
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.print,
+                                    size: 16, color: Colors.grey),
+                                const Icon(Icons.chevron_right,
+                                    color: Colors.grey),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
 
-            const Padding(
-              padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-              child: Text("เงิน", style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.receipt_long, color: Color(0xFF1D5A5D)),
-                    ),
-                    title: const Text("ยอดขาย", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle: const Text("ยอดสด/โอน • บิลเฉลี่ย • รายชั่วโมง...", style: TextStyle(color: Colors.grey, fontSize: 11)),
-                    trailing: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text("0.00", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                        SizedBox(width: 4),
-                        Icon(Icons.print, size: 16, color: Colors.grey),
-                        Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1, indent: 60),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.calculate_outlined, color: Color(0xFF1D5A5D)),
-                    ),
-                    title: const Text("ต้นทุน & กำไร", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    subtitle: const Text("ต้นทุนรวม กำไรสุทธิ และอัตรา...", style: TextStyle(color: Colors.grey, fontSize: 11)),
-                    trailing: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text("0.00", style: TextStyle(color: Color(0xFF1D5A5D), fontWeight: FontWeight.bold)),
-                        SizedBox(width: 4),
-                        Icon(Icons.print, size: 16, color: Colors.grey),
-                        Icon(Icons.chevron_right, color: Colors.grey),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            
             const SizedBox(height: 16),
             _buildStockHistorySection(),
             const SizedBox(height: 40),
@@ -190,49 +307,57 @@ class _ReportScreenState extends State<ReportScreen> {
       children: [
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            "ประวัติการอัพเดตสต็อก", 
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1D5A5D))
-          ),
+          child: Text("ประวัติการอัพเดตสต็อก",
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1D5A5D))),
         ),
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('stock_history')
               .orderBy('created_at', descending: true)
-              .limit(20) 
+              .limit(20)
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+              return const Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator()));
             }
 
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: Center(child: Text("ยังไม่มีประวัติการอัพเดตสต็อก", style: TextStyle(color: Colors.grey))),
+                child: Center(
+                    child: Text("ยังไม่มีประวัติการอัพเดตสต็อก",
+                        style: TextStyle(color: Colors.grey))),
               );
             }
 
             return ListView.builder(
-              shrinkWrap: true, 
+              shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: snapshot.data!.docs.length,
               itemBuilder: (context, index) {
                 var doc = snapshot.data!.docs[index];
                 var data = doc.data() as Map<String, dynamic>;
-                
+
                 bool isAdd = data['action'] == 'add';
-                
+
                 String timeString = "";
                 if (data['created_at'] != null) {
-                   DateTime dt = (data['created_at'] as Timestamp).toDate();
-                   timeString = "${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+                  DateTime dt = (data['created_at'] as Timestamp).toDate();
+                  timeString =
+                      "${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
                 }
 
                 double newCost = (data['new_cost'] ?? 0).toDouble();
 
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -245,11 +370,14 @@ class _ReportScreenState extends State<ReportScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: isAdd ? Colors.green.shade50 : Colors.red.shade50,
+                          color:
+                              isAdd ? Colors.green.shade50 : Colors.red.shade50,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          isAdd ? Icons.add_shopping_cart : Icons.remove_shopping_cart,
+                          isAdd
+                              ? Icons.add_shopping_cart
+                              : Icons.remove_shopping_cart,
                           color: isAdd ? Colors.green : Colors.red,
                           size: 20,
                         ),
@@ -262,27 +390,42 @@ class _ReportScreenState extends State<ReportScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(data['product_name'] ?? 'ไม่ทราบชื่อ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                                Text(timeString, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                Text(data['product_name'] ?? 'ไม่ทราบชื่อ',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15)),
+                                Text(timeString,
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 11)),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              data['detail'] ?? '', 
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12)
-                            ),
+                            Text(data['detail'] ?? '',
+                                style: TextStyle(
+                                    color: Colors.grey.shade600, fontSize: 12)),
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF3F3F1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text("คงเหลือ: ${data['new_stock']} ชิ้น", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1D5A5D))),
-                                  Text("ทุนเฉลี่ย: ฿${newCost.toStringAsFixed(2)}/ชิ้น", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1D5A5D))),
+                                  Text("คงเหลือ: ${data['new_stock']} ชิ้น",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Color(0xFF1D5A5D))),
+                                  Text(
+                                      "ทุนเฉลี่ย: ฿${newCost.toStringAsFixed(2)}/ชิ้น",
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: Color(0xFF1D5A5D))),
                                 ],
                               ),
                             ),

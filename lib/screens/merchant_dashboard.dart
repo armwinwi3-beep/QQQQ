@@ -120,6 +120,7 @@ class MerchantDashboard extends StatelessWidget {
                   const Divider(height: 32),
 
                   // --- 4. ปุ่มจัดการออเดอร์ (Actions) ---
+                  // --- 4. ปุ่มจัดการออเดอร์ (Actions) ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -129,10 +130,9 @@ class MerchantDashboard extends StatelessWidget {
                         child: const Text("ปิด",
                             style: TextStyle(color: Colors.grey)),
                       ),
-
                       const SizedBox(width: 4),
 
-                      // 2. ห่อด้วย Expanded หรือใช้ Flexible เพื่อให้ปุ่มขยาย/ย่อตามพื้นที่ที่เหลือได้
+                      // 2. ปุ่มยกเลิก
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
@@ -144,7 +144,7 @@ class MerchantDashboard extends StatelessWidget {
                           },
                           icon: const Icon(Icons.cancel,
                               color: Colors.red, size: 16),
-                          label: const Text("ยกเลิกออเดอร์",
+                          label: const Text("ยกเลิก",
                               style:
                                   TextStyle(fontSize: 13, color: Colors.red)),
                           style: OutlinedButton.styleFrom(
@@ -153,30 +153,56 @@ class MerchantDashboard extends StatelessWidget {
                           ),
                         ),
                       ),
-
                       const SizedBox(width: 4),
 
-                      // 3. ปุ่มเริ่มทำอาหาร
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () async {
-                            await FirebaseFirestore.instance
-                                .collection('orders')
-                                .doc(doc.id)
-                                .update({'status': 'cooking'});
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          icon: const Icon(Icons.soup_kitchen,
-                              color: Colors.white, size: 16),
-                          label: const Text("เริ่มทำอาหาร",
-                              style:
-                                  TextStyle(fontSize: 13, color: Colors.white)),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                      // 🟢 3. ปุ่มแอคชันหลัก (เช็กตามสถานะ status ของออเดอร์)
+                      if (status == 'pending') ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              await FirebaseFirestore.instance
+                                  .collection('orders')
+                                  .doc(doc.id)
+                                  .update({'status': 'cooking'});
+                              if (context.mounted) Navigator.pop(context);
+                            },
+                            icon: const Icon(Icons.soup_kitchen,
+                                color: Colors.white, size: 16),
+                            label: const Text("เริ่มทำอาหาร",
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                            ),
                           ),
                         ),
-                      ),
+                      ] else if (status == 'cooking') ...[
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              // อัปเดตสถานะเป็น completed (เสร็จสิ้น) แล้วมันจะหายไปจากหน้าจออัตโนมัติ
+                              await FirebaseFirestore.instance
+                                  .collection('orders')
+                                  .doc(doc.id)
+                                  .update({'status': 'completed'});
+                              if (context.mounted) Navigator.pop(context);
+                            },
+                            icon: const Icon(Icons.check_circle,
+                                color: Colors.white, size: 16),
+                            label: const Text("เสร็จแล้ว",
+                                style: TextStyle(
+                                    fontSize: 13, color: Colors.white)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Colors.green, // เปลี่ยนเป็นสีเขียว
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   )
                 ],
